@@ -32,8 +32,22 @@ def get_base_parser():
         help='Set learning rate. Default: 0.01',
     )
     parser.add_argument(
+        '--n-episodes',
+        dest='n_episodes',
+        type=int,
+        default=1000,
+        help='Set number of episodes. Default: 1000',
+    )
+    parser.add_argument(
+        '--batch-size',
+        dest='batch_size',
+        type=int,
+        default=10,
+        help='Set number of trajectories in each batch. Default: 10',
+    )
+    parser.add_argument(
         '--render',
-        dest='render',
+        dest='do_render',
         action='store_true',
         help='render the environment',
     )

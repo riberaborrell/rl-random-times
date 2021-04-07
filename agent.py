@@ -18,7 +18,7 @@ class Agent:
 
         self.batch_states = None
         self.batch_actions = None
-        self.batch_avg_returns = None
+        self.batch_returns = None
         self.batch_traj_num = None
 
     def reset_trajectory(self):
@@ -37,13 +37,13 @@ class Agent:
     def reset_batch(self):
         self.batch_states = np.empty((0, self.obs_space_dim))
         self.batch_actions = np.empty(0, dtype=np.int)
-        self.batch_avg_returns = np.empty(0)
+        self.batch_returns = np.empty(0)
         self.batch_traj_num = 0
 
     def update_batch(self):
         self.batch_states = np.vstack((self.batch_states, self.states))
         self.batch_actions = np.append(self.batch_actions, self.actions)
-        self.batch_avg_returns = np.append(self.batch_avg_returns, self.ret - self.ret.mean())
+        self.batch_returns = np.append(self.batch_returns, self.ret)
         self.batch_traj_num += 1
 
         self.total_rewards = np.append(self.total_rewards, sum(self.rewards))
