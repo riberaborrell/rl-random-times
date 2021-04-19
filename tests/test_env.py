@@ -1,4 +1,3 @@
-import gym
 import gym.envs as envs
 
 import pytest

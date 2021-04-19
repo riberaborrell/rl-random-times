@@ -32,8 +32,36 @@ def get_base_parser():
         help='Set learning rate. Default: 0.01',
     )
     parser.add_argument(
-        '--n-episodes',
-        dest='n_episodes',
+        '--epsilon',
+        dest='epsilon',
+        type=float,
+        default=0.5,
+        help='Set probility of picking an action randomly. Default: 0.5',
+    )
+    parser.add_argument(
+        '--eps-decay',
+        dest='eps_decay',
+        type=float,
+        default=0.98,
+        help='Set decay rate of epsilon. Default: 0.98',
+    )
+    parser.add_argument(
+        '--epsilon-decay',
+        dest='epsilon_decay',
+        type=float,
+        default=0.98,
+        help='Set decay factor per iteration of epsilon. Default: 0.5',
+    )
+    parser.add_argument(
+        '--n-steps-lim',
+        dest='n_steps_lim',
+        type=int,
+        default=1000,
+        help='Set number of maximum steps for an episode. Default: 1000',
+    )
+    parser.add_argument(
+        '--n-episodes-lim',
+        dest='n_episodes_lim',
         type=int,
         default=1000,
         help='Set number of episodes. Default: 1000',
@@ -57,5 +85,23 @@ def get_base_parser():
         type=int,
         default=10,
         help='interval between training status logs (default: 10)',
+    )
+    parser.add_argument(
+        '--load',
+        dest='load',
+        action='store_true',
+        help='Load already run agent. Default: False',
+    )
+    parser.add_argument(
+        '--do-plots',
+        dest='do_plots',
+        action='store_true',
+        help='Do plots. Default: False',
+    )
+    parser.add_argument(
+        '--do-report',
+        dest='do_report',
+        action='store_true',
+        help='Write report. Default: False',
     )
     return parser
