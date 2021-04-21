@@ -29,7 +29,7 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
     state_space_dim = state_space.shape[0]
 
     # discretize state space
-    h_state = np.array([0.05, 0.5])
+    h_state = np.array([0.1, 2])
     state_space_h = np.mgrid[[
         slice(-np.pi, np.pi + h_state[0], h_state[0]),
         slice(-8.0, 8.0 + h_state[1], h_state[1]),
@@ -53,6 +53,7 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
 
         # reset environment
         agent.env.reset()
+        state = agent.env.state
 
         # reset trajectory
         agent.reset_rewards()
@@ -114,7 +115,8 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
             # update q values
             idx_state_action = idx_state + (idx_action,)
             q_values[idx_state_action] += lr * (
-                  agent.rewards[-1] \
+                  #agent.rewards[-1] \
+                  r \
                 + agent.gamma * np.max(q_values[(idx_new_state[0], idx_new_state[1], slice(None))]) \
                 - q_values[idx_state_action]
             )
@@ -177,10 +179,10 @@ def main():
 
         # print running avg
         if args.do_report and ep % 1 == 0:
-            if ep < 10:
+            if ep < 100:
                 idx_last_episodes = slice(0, ep)
             else:
-                idx_last_episodes = slice(ep - 10, ep)
+                idx_last_episodes = slice(ep - 100, ep)
             msg = 'ep: {:d}, time steps: {:d}, return: {:.2f}, runn avg (10): {:.2f}, ' \
                   'total rewards: {:.2f}, runn avg (10): {:.2f}' \
                   ''.format(ep, agent.all_time_steps[ep], agent.all_returns[ep],
