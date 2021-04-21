@@ -53,10 +53,12 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
 
         # reset environment
         agent.env.reset()
-        state = agent.env.state
 
         # reset trajectory
         agent.reset_rewards()
+
+        # assign 0 as first reward
+        agent.save_reward(0)
 
         # terminal state flag
         complete = False
@@ -97,9 +99,6 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
             #print(state, action)
             state, r, complete, _ = agent.env.step(action)
 
-            # save reward
-            agent.save_reward(r)
-
             # interpolate new state in our discretized state space
             idx_new_state = [None for i in range(state_space_dim)]
             for i in range(state_space_dim):
@@ -115,10 +114,14 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
             # update q values
             idx_state_action = idx_state + (idx_action,)
             q_values[idx_state_action] += lr * (
-                  r \
+                  agent.rewards[-1] \
                 + agent.gamma * np.max(q_values[(idx_new_state[0], idx_new_state[1], slice(None))]) \
                 - q_values[idx_state_action]
             )
+
+            # save reward
+            agent.save_reward(r)
+
 
         # save q-value
         agent.q_values = np.concatenate((agent.q_values, q_values[np.newaxis, :]), axis=0)
@@ -170,7 +173,6 @@ def main():
 
     episodes = np.arange(agent.n_episodes)
     sliced_episodes = episodes[::agent.step_sliced_episodes]
-    breakpoint()
     for ep in episodes:
 
         # print running avg
