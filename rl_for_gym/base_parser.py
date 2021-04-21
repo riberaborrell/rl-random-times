@@ -67,6 +67,13 @@ def get_base_parser():
         help='Set number of episodes. Default: 1000',
     )
     parser.add_argument(
+        '--step-sliced-episodes',
+        dest='step_sliced_episodes',
+        type=int,
+        default=100,
+        help='Set slice episodes step. Default: 100',
+    )
+    parser.add_argument(
         '--batch-size',
         dest='batch_size',
         type=int,

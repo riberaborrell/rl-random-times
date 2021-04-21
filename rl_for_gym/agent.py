@@ -40,6 +40,7 @@ class Agent:
 
         # all episodes
         self.n_episodes = None
+        self.n_sliced_episodes = None
         self.total_rewards = None
         self.all_returns = None
         self.all_time_steps = None
@@ -148,11 +149,11 @@ class QLearningAgent(Agent):
         np.savez(
             file_path,
             n_episodes=self.n_episodes,
+            step_sliced_episodes=self.step_sliced_episodes,
             total_rewards=self.total_rewards,
             all_returns=self.all_returns,
             all_time_steps=self.all_time_steps,
-            v_values=self.v_values,
-            q_values=self.q_values,
+            q_values=self.q_values[::self.step_sliced_episodes],
             t_initial=self.t_initial,
             t_final=self.t_final,
         )
@@ -164,10 +165,10 @@ class QLearningAgent(Agent):
                 allow_pickle=True,
             )
             self.n_episodes = agent['n_episodes']
+            self.step_sliced_episodes = agent['step_sliced_episodes']
             self.total_rewards = agent['total_rewards']
             self.all_returns = agent['all_returns']
             self.all_time_steps = agent['all_time_steps']
-            self.v_values = agent['v_values']
             self.q_values = agent['q_values']
             self.t_initial = agent['t_initial']
             self.t_final = agent['t_final']

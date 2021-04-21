@@ -158,6 +158,7 @@ def main():
                    args.lr, args.epsilon, args.eps_decay)
 
         # save agent
+        agent.step_sliced_episodes = args.step_sliced_episodes
         agent.save()
         return
 
@@ -167,20 +168,28 @@ def main():
             return
 
 
-    for ep in np.arange(agent.n_episodes):
+    episodes = np.arange(agent.n_episodes)
+    sliced_episodes = episodes[::agent.step_sliced_episodes]
+    breakpoint()
+    for ep in episodes:
 
         # print running avg
         if args.do_report and ep % 1 == 0:
+            if ep < 10:
+                idx_last_episodes = slice(0, ep)
+            else:
+                idx_last_episodes = slice(ep - 10, ep)
             msg = 'ep: {:d}, time steps: {:d}, return: {:.2f}, runn avg (10): {:.2f}, ' \
                   'total rewards: {:.2f}, runn avg (10): {:.2f}' \
                   ''.format(ep, agent.all_time_steps[ep], agent.all_returns[ep],
-                            np.mean(agent.all_returns[-10:ep+1]), agent.total_rewards[ep],
-                            np.mean(agent.total_rewards[-10:ep+1]))
+                            np.mean(agent.all_returns[idx_last_episodes]), agent.total_rewards[ep],
+                            np.mean(agent.total_rewards[idx_last_episodes]))
             print(msg)
 
 
-        if args.do_plots and ep % 100 == 0:
-            v_values = np.max(q_values, axis=2)
+        if args.do_plots and ep in sliced_episodes:
+            idx_sliced_ep = int(ep / agent.step_sliced_episodes)
+            v_values = np.max(agent.q_values[idx_sliced_ep], axis=2)
 
             # print v values table
             fig, ax = plt.subplots()
