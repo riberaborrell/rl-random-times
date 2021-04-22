@@ -92,7 +92,7 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
 
 
     # save number of episodes
-    agent.n_episodes = ep
+    agent.n_episodes = ep + 1
 
 
 def main():
@@ -127,6 +127,7 @@ def main():
         if not agent.load():
             return
 
+    breakpoint()
     if args.do_plots:
         plt = Plot(agent.dir_path, 'total_rewards')
         plt.plot_total_rewards(agent.n_episodes, agent.total_rewards)
