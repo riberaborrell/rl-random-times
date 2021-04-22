@@ -168,6 +168,7 @@ class QLearningAgent(Agent):
         np.savez(
             file_path,
             n_episodes=self.n_episodes,
+            epsilons=self.epsilons,
             step_sliced_episodes=self.step_sliced_episodes,
             total_rewards=self.total_rewards,
             all_returns=self.all_returns,
@@ -184,6 +185,7 @@ class QLearningAgent(Agent):
                 allow_pickle=True,
             )
             self.n_episodes = agent['n_episodes']
+            self.epsilons = agent['epsilons']
             self.step_sliced_episodes = agent['step_sliced_episodes']
             self.total_rewards = agent['total_rewards']
             self.all_returns = agent['all_returns']

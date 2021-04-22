@@ -1,12 +1,12 @@
 from agent import QLearningAgent
 from base_parser import get_base_parser
+from plots import Plot
 
 import gym
 from gym.spaces.box import Box
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 
 
 def get_parser():
@@ -127,10 +127,16 @@ def main():
         if not agent.load():
             return
 
+    if args.do_plots:
+        plt = Plot(agent.dir_path, 'total_rewards')
+        plt.plot_total_rewards(agent.n_episodes, agent.total_rewards)
+        plt = Plot(agent.dir_path, 'epsilons')
+        plt.plot_total_rewards(agent.n_episodes, agent.epsilons)
+    return
+
 
     episodes = np.arange(agent.n_episodes)
     sliced_episodes = episodes[::agent.step_sliced_episodes]
-    breakpoint()
     for ep in episodes:
 
         # print running avg
