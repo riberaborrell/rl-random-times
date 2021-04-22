@@ -31,6 +31,13 @@ class Agent:
         self.discounted_rewards = None
         self.returns = None
 
+        # greedy
+        self.eps_init = None
+        self.eps_min = None
+        self.eps_max = None
+        self.eps_decay = None
+        self.epsilons = None
+
         # batch
         self.batch_states = None
         self.batch_actions = None
@@ -39,6 +46,7 @@ class Agent:
         self.batch_traj_num = None
 
         # all episodes
+        self.epsilons = None
         self.n_episodes = None
         self.n_sliced_episodes = None
         self.total_rewards = None
@@ -54,6 +62,17 @@ class Agent:
 
     def stop_timer(self):
         self.t_final = time.perf_counter()
+
+    def set_epsilon_greedy(self, eps_init, eps_min, eps_max, eps_decay):
+        self.eps_init = eps_init
+        self.eps_min = eps_min
+        self.eps_max = eps_max
+        self.eps_decay = eps_decay
+        self.epsilons = [eps_init]
+
+    def update_epsilon_greedy(self, ep):
+        return self.eps_min + (self.eps_max - self.eps_min) * np.exp( - self.eps_decay * ep)
+
 
     def preallocate_episodes(self):
 
@@ -153,7 +172,7 @@ class QLearningAgent(Agent):
             total_rewards=self.total_rewards,
             all_returns=self.all_returns,
             all_time_steps=self.all_time_steps,
-            q_values=self.q_values[::self.step_sliced_episodes],
+            q_values=self.q_values[-1],
             t_initial=self.t_initial,
             t_final=self.t_final,
         )

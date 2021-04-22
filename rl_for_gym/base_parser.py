@@ -46,11 +46,18 @@ def get_base_parser():
         help='Set decay rate of epsilon. Default: 0.98',
     )
     parser.add_argument(
-        '--epsilon-decay',
-        dest='epsilon_decay',
+        '--eps-min',
+        dest='eps_min',
         type=float,
-        default=0.98,
-        help='Set decay factor per iteration of epsilon. Default: 0.5',
+        default=0.01,
+        help='Set minimum value for epsilon. Default: 0.01',
+    )
+    parser.add_argument(
+        '--eps-max',
+        dest='eps_max',
+        type=float,
+        default=1,
+        help='Set maximum value for epsilon. Default: 1',
     )
     parser.add_argument(
         '--n-steps-lim',
