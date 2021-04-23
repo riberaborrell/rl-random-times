@@ -168,7 +168,7 @@ class QLearningAgent(Agent):
         np.savez(
             file_path,
             n_episodes=self.n_episodes,
-            epsilons=self.epsilons,
+            epsilons=self.epsilons[:-1],
             step_sliced_episodes=self.step_sliced_episodes,
             total_rewards=self.total_rewards,
             all_returns=self.all_returns,
