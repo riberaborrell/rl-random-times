@@ -14,17 +14,19 @@ def get_parser():
     parser.description = ''
     return parser
 
-def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_render=False):
+def q_learning(agent, n_episodes_lim, n_steps_lim, lr, do_render=False):
 
     # preallocate information for all epochs
     agent.preallocate_episodes()
 
     # preallocate q-value table
-    #agent.preallocate_tables(state_space_h, action_space_h)
     agent.q_values = np.empty((0, agent.env.observation_space.n, agent.env.action_space.n))
 
     # initialize q-values table
     q_values = np.zeros((agent.env.observation_space.n, agent.env.action_space.n))
+
+    # set epsilon
+    epsilon = agent.eps_init
 
     # different trajectories
     for ep in np.arange(n_episodes_lim):
@@ -34,9 +36,6 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
 
         # reset trajectory
         agent.reset_rewards()
-
-        # assign 0 as first reward
-        #agent.save_reward(0)
 
         # terminal state flag
         complete = False
@@ -51,7 +50,7 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
                 agent.env.render()
 
             # pick greedy action (exploitation)
-            if np.random.rand() < epsilon:
+            if np.random.rand() > epsilon:
                 action = np.argmax(q_values[state])
 
             # pick random action (exploration)
@@ -63,7 +62,6 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
 
             # update q values
             q_values[state, action] += lr * (
-                  #agent.rewards[-1] \
                   r \
                 + agent.gamma * np.max(q_values[new_state, :]) \
                 - q_values[state, action]
@@ -114,8 +112,7 @@ def main():
         agent.set_epsilon_greedy(args.epsilon, args.eps_min, args.eps_max, args.eps_decay)
 
         # q-learning
-        q_learning(agent, args.n_episodes_lim, args.n_steps_lim,
-                   args.lr, args.epsilon, args.eps_decay)
+        q_learning(agent, args.n_episodes_lim, args.n_steps_lim, args.lr)
 
         # save agent
         agent.step_sliced_episodes = args.step_sliced_episodes
@@ -127,31 +124,21 @@ def main():
         if not agent.load():
             return
 
-    breakpoint()
+    # do plots
     if args.do_plots:
         plt = Plot(agent.dir_path, 'total_rewards')
         plt.plot_total_rewards(agent.n_episodes, agent.total_rewards)
         plt = Plot(agent.dir_path, 'epsilons')
         plt.plot_total_rewards(agent.n_episodes, agent.epsilons)
-    return
 
 
-    episodes = np.arange(agent.n_episodes)
-    sliced_episodes = episodes[::agent.step_sliced_episodes]
-    for ep in episodes:
+    if args.do_report:
+        for ep in np.arange(agent.n_episodes):
 
-        # print running avg
-        if args.do_report and ep % 1 == 0:
-            if ep < 100:
-                idx_last_episodes = slice(0, ep)
-            else:
-                idx_last_episodes = slice(ep - 100, ep)
-            msg = 'ep: {:d}, time steps: {:d}, return: {:.2f}, runn avg (10): {:.2f}, ' \
-                  'total rewards: {:.2f}, runn avg (10): {:.2f}' \
-                  ''.format(ep, agent.all_time_steps[ep], agent.all_returns[ep],
-                            np.mean(agent.all_returns[idx_last_episodes]), agent.total_rewards[ep],
-                            np.mean(agent.total_rewards[idx_last_episodes]))
-            print(msg)
+            # print running avg
+            if ep % 1 == 0:
+                msg = agent.log_episodes(ep)
+                print(msg)
 
 
 if __name__ == '__main__':

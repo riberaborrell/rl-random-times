@@ -32,6 +32,9 @@ def main():
     # reset env
     state = agent.env.reset()
 
+    # reset trajectory
+    agent.reset_rewards()
+
     # terminal state flag
     complete = False
 
@@ -49,6 +52,20 @@ def main():
 
         # step dynamics forward
         state, r, complete, _ = agent.env.step(action)
+
+        # save reward
+        agent.save_reward(r)
+
+
+    agent.compute_discounted_rewards()
+    agent.compute_returns()
+
+    n_steps = agent.rewards.shape[0]
+    for k in np.arange(n_steps):
+        msg = 'k: {:d}, reward: {:2.2f}, disc. reward: {:2.2f}, sample return: {:2.2f}' \
+              ''.format(k, agent.rewards[k], agent.discounted_rewards[k], agent.returns[k])
+        print(msg)
+
 
 if __name__ == '__main__':
     main()

@@ -46,12 +46,11 @@ class Agent:
         self.batch_traj_num = None
 
         # all episodes
-        self.epsilons = None
         self.n_episodes = None
         self.n_sliced_episodes = None
         self.total_rewards = None
-        self.all_returns = None
-        self.all_time_steps = None
+        self.sample_returns = None
+        self.time_steps = None
 
         # computation time
         self.t_initial = None
@@ -73,25 +72,13 @@ class Agent:
     def update_epsilon_greedy(self, ep):
         return self.eps_min + (self.eps_max - self.eps_min) * np.exp( - self.eps_decay * ep)
 
-
-    def preallocate_episodes(self):
-
-        # all episodes
-        self.total_rewards = np.empty(0)
-        self.all_returns = np.empty(0)
-        self.all_time_steps = np.empty(0, dtype=np.int32)
-
-    def save_episode(self, time_steps):
-        self.total_rewards = np.append(self.total_rewards, sum(self.rewards))
-        self.all_returns = np.append(self.all_returns, self.returns[0])
-        self.all_time_steps = np.append(self.all_time_steps, time_steps)
-
     def reset_rewards(self):
         self.rewards = np.empty(0)
 
     def save_reward(self, r):
         self.rewards = np.append(self.rewards, r)
 
+    #TODO! generalize for different types of observation spaces and action spaces
     def reset_trajectory(self, env):
         self.obs_space_dim = env.observation_space.shape[0]
 
@@ -100,22 +87,51 @@ class Agent:
         self.rewards = np.empty(0)
 
     def compute_discounted_rewards(self):
+        ''' discount the discount factor to the rewards
+        '''
         k_last = self.rewards.shape[0]
         self.discounted_rewards = np.array(
             [self.gamma**k * self.rewards[k] for k in np.arange(k_last)]
         )
 
     def compute_returns(self):
-        '''computes the obtained return of each state of the trajectory. Also saves
-           the initial return for each trajectory
+        ''' computes the obtained return of each state of the trajectory
         '''
         # reverse the discounted reward, apply cumsum and reverse it back
         self.returns = self.discounted_rewards[::-1].cumsum()[::-1]
 
-    def get_v_value_table(self):
-        pass
+    def preallocate_episodes(self):
+        self.total_rewards = np.empty(0)
+        self.sample_returns = np.empty(0)
+        self.time_steps = np.empty(0, dtype=np.int32)
+
+    def save_episode(self, time_steps):
+        self.total_rewards = np.append(self.total_rewards, sum(self.rewards))
+        self.sample_returns = np.append(self.sample_returns, self.returns[0])
+        self.time_steps = np.append(self.time_steps, time_steps)
+
+    def log_episodes(self, ep, n_avg_episodes=100):
+        if ep < n_avg_episodes:
+            idx_last_episodes = slice(0, ep)
+        else:
+            idx_last_episodes = slice(ep - n_avg_episodes, ep)
+
+        msg = 'ep: {:d}, time steps: {:d}, return: {:.2f}, runn avg (:d): {:.2f}, ' \
+                    'total rewards: {:.2f}, runn avg (:d): {:.2f}' \
+              ''.format(
+                    ep,
+                    self.time_steps[ep],
+                    self.sample_returns[ep],
+                    n_avg_episodes,
+                    np.mean(self.sample_returns[idx_last_episodes]),
+                    self.total_rewards[ep],
+                    n_avg_episodes,
+                    np.mean(self.total_rewards[idx_last_episodes])
+                  )
+        return msg
 
 
+    #TODO! generalize
     def reset_batch(self):
         self.batch_states = np.empty((0, self.obs_space_dim))
         self.batch_actions = np.empty(0, dtype=np.int)
@@ -125,6 +141,7 @@ class Agent:
         self.total_rewards = np.empty(0)
 
 
+    #TODO! generalize
     def update_batch(self):
         self.batch_states = np.vstack((self.batch_states, self.states))
         self.batch_actions = np.append(self.batch_actions, self.actions)
@@ -171,8 +188,8 @@ class QLearningAgent(Agent):
             epsilons=self.epsilons[:-1],
             step_sliced_episodes=self.step_sliced_episodes,
             total_rewards=self.total_rewards,
-            all_returns=self.all_returns,
-            all_time_steps=self.all_time_steps,
+            sample_returns=self.sample_returns,
+            time_steps=self.time_steps,
             q_values=self.q_values[-1],
             t_initial=self.t_initial,
             t_final=self.t_final,
@@ -188,8 +205,8 @@ class QLearningAgent(Agent):
             self.epsilons = agent['epsilons']
             self.step_sliced_episodes = agent['step_sliced_episodes']
             self.total_rewards = agent['total_rewards']
-            self.all_returns = agent['all_returns']
-            self.all_time_steps = agent['all_time_steps']
+            self.sample_returns = agent['sample_returns']
+            self.time_steps = agent['time_steps']
             self.q_values = agent['q_values']
             self.t_initial = agent['t_initial']
             self.t_final = agent['t_final']
