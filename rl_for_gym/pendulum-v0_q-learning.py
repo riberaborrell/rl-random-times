@@ -48,6 +48,9 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
     # initialize q-values table
     q_values = np.zeros(state_space_h.shape[:-1] + action_space_h.shape[:-1])
 
+    # set epsilon
+    epsilon = agent.eps_init
+
     # different trajectories
     for ep in np.arange(n_episodes_lim):
 
@@ -59,7 +62,7 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
         agent.reset_rewards()
 
         # assign 0 as first reward
-        agent.save_reward(0)
+        #agent.save_reward(0)
 
         # terminal state flag
         complete = False
@@ -86,7 +89,7 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
             #env.state = state_space_h[idx_state]
 
             # pick greedy action (exploitation)
-            if np.random.rand() < epsilon:
+            if np.random.rand() > epsilon:
                 idx_action = np.argmax(q_values[idx_state])
                 action = action_space_h[idx_action]
 
@@ -98,7 +101,7 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
 
             # step dynamics forward
             #print(state, action)
-            state, r, complete, _ = agent.env.step(action)
+            new_state, r, complete, _ = agent.env.step(action)
 
             # interpolate new state in our discretized state space
             idx_new_state = [None for i in range(state_space_dim)]
@@ -108,7 +111,7 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
                     state_space.high[i],
                     state_space_h.shape[i],
                 )
-                idx_new_state[i] = np.argmin(np.abs(axis_i - agent.env.state[i]))
+                idx_new_state[i] = np.argmin(np.abs(axis_i - new_state[i]))
             idx_new_state = tuple(idx_new_state)
             #env.state = state_space_h[idx_new_state]
 
@@ -124,6 +127,9 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
             # save reward
             agent.save_reward(r)
 
+            # update state
+            state = new_state
+
 
         # save q-value
         agent.q_values = np.concatenate((agent.q_values, q_values[np.newaxis, :]), axis=0)
@@ -131,16 +137,18 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
         # compute return
         agent.compute_discounted_rewards()
         agent.compute_returns()
+        print(agent.total_rewards[-1:])
 
         # save time steps
         agent.save_episode(time_steps=k)
 
         # update epsilon
-        epsilon *= eps_decay
+        epsilon = agent.update_epsilon_greedy(ep)
+        agent.epsilons.append(epsilon)
 
 
     # save number of episodes
-    agent.n_episodes = ep
+    agent.n_episodes = ep + 1
 
 
 def main():
@@ -157,6 +165,8 @@ def main():
 
     # run q-learning agent
     if not args.load:
+        # set epsilon
+        agent.set_epsilon_greedy(args.epsilon, args.eps_min, args.eps_max, args.eps_decay)
 
         # q-learning
         q_learning(agent, args.n_episodes_lim, args.n_steps_lim,
