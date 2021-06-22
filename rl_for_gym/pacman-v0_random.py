@@ -1,4 +1,3 @@
-from agent import Agent
 from base_parser import get_base_parser
 
 import gym
@@ -12,18 +11,20 @@ def main():
     args = get_parser().parse_args()
 
     # create gym env 
-    env = gym.make('Pendulum-v0')
+    env = gym.make('MsPacman-v0')
 
     env.reset()
-    for _ in range(args.n_steps):
+    for _ in range(args.n_steps_lim):
         env.render()
 
         # take a random action
-        env.step(env.action_space.sample())
+        action = env.action_space.sample()
 
-        print(env.state)
+        # step dynamics forward
+        state, r, complete, _ = env.step(action)
 
     env.close()
 
 if __name__ == '__main__':
     main()
+

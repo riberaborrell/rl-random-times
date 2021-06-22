@@ -11,7 +11,7 @@ def main():
     args = get_parser().parse_args()
 
     # create gym env 
-    env = gym.make('Taxi-v3')
+    env = gym.make('Pendulum-v0')
 
     env.reset()
     for _ in range(args.n_steps_lim):
