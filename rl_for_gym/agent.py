@@ -62,15 +62,18 @@ class Agent:
     def stop_timer(self):
         self.t_final = time.perf_counter()
 
-    def set_epsilon_greedy(self, eps_init, eps_min, eps_max, eps_decay):
+    def set_epsilon_parameters(self, eps_init, eps_min, eps_max, eps_decay):
         self.eps_init = eps_init
         self.eps_min = eps_min
         self.eps_max = eps_max
         self.eps_decay = eps_decay
         self.epsilons = [eps_init]
 
-    def update_epsilon_greedy(self, ep):
-        return self.eps_min + (self.eps_max - self.eps_min) * np.exp( - self.eps_decay * ep)
+    def update_epsilon_linear_decay(self, eps):
+        return self.eps_min + (self.eps_max - self.eps_min) * self.eps_decay * eps
+
+    def update_epsilon_exp_decay(self, episode):
+        return self.eps_min + (self.eps_max - self.eps_min) * np.exp( - self.eps_decay * episode)
 
     def reset_rewards(self):
         self.rewards = np.empty(0)
@@ -116,8 +119,8 @@ class Agent:
         else:
             idx_last_episodes = slice(ep - n_avg_episodes, ep)
 
-        msg = 'ep: {:d}, time steps: {:d}, return: {:.2f}, runn avg (:d): {:.2f}, ' \
-                    'total rewards: {:.2f}, runn avg (:d): {:.2f}' \
+        msg = 'ep: {:d}, time steps: {:d}, return: {:.2f}, runn avg ({:d}): {:.2f}, ' \
+                    'total rewards: {:.2f}, runn avg ({:d}): {:.2f}' \
               ''.format(
                     ep,
                     self.time_steps[ep],
@@ -190,28 +193,21 @@ class QLearningAgent(Agent):
             total_rewards=self.total_rewards,
             sample_returns=self.sample_returns,
             time_steps=self.time_steps,
-            q_values=self.q_values[-1],
+            q_values=self.q_values,
             t_initial=self.t_initial,
             t_final=self.t_final,
         )
 
     def load(self):
         try:
-            agent = np.load(
-                os.path.join(self.dir_path, 'agent.npz'),
-                allow_pickle=True,
-            )
-            self.n_episodes = agent['n_episodes']
-            self.epsilons = agent['epsilons']
-            self.step_sliced_episodes = agent['step_sliced_episodes']
-            self.total_rewards = agent['total_rewards']
-            self.sample_returns = agent['sample_returns']
-            self.time_steps = agent['time_steps']
-            self.q_values = agent['q_values']
-            self.t_initial = agent['t_initial']
-            self.t_final = agent['t_final']
+            file_path = os.path.join(self.dir_path, 'agent.npz')
+            data = np.load(file_path, allow_pickle=True)
+            for file_name in data.files:
+                if data[file_name].ndim == 0:
+                    setattr(self, file_name, data[file_name][()])
+                else:
+                    setattr(self, file_name, data[file_name])
             return True
-
         except:
             msg = 'no q-learning agent found'
             print(msg)

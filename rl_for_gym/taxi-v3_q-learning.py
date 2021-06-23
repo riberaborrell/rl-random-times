@@ -85,7 +85,7 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, do_render=False):
         agent.save_episode(time_steps=k)
 
         # update epsilon
-        epsilon = agent.update_epsilon_greedy(ep)
+        epsilon = agent.update_epsilon_exp_decay(ep)
         agent.epsilons.append(epsilon)
 
 
@@ -109,7 +109,7 @@ def main():
     if not args.load:
 
         # set epsilon
-        agent.set_epsilon_greedy(args.epsilon, args.eps_min, args.eps_max, args.eps_decay)
+        agent.set_epsilon_parameters(args.epsilon, args.eps_min, args.eps_max, args.eps_decay)
 
         # q-learning
         q_learning(agent, args.n_episodes_lim, args.n_steps_lim, args.lr)
