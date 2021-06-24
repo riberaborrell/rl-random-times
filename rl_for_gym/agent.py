@@ -1,4 +1,4 @@
-from rl_for_gym.utils_path import get_q_learning_agent_dir_path
+from rl_for_gym.utils_path import get_agent_dir_path
 
 import numpy as np
 import time
@@ -55,6 +55,9 @@ class Agent:
         # computation time
         self.t_initial = None
         self.t_final = None
+
+    def set_dir_path(self, agent_str):
+        self.dir_path = get_agent_dir_path(self.env, agent_str)
 
     def start_timer(self):
         self.t_initial = time.perf_counter()
@@ -173,9 +176,6 @@ class QLearningAgent(Agent):
         self.v_values = None
         self.q_values = None
 
-    def set_dir_path(self):
-        self.dir_path = get_q_learning_agent_dir_path(self.env)
-
     def preallocate_tables(self, state_space_h, action_space_h):
         self.state_space_h = state_space_h
         self.action_space_h = action_space_h
@@ -189,7 +189,7 @@ class QLearningAgent(Agent):
             file_path,
             n_episodes=self.n_episodes,
             epsilons=self.epsilons[:-1],
-            step_sliced_episodes=self.step_sliced_episodes,
+            #step_sliced_episodes=self.step_sliced_episodes,
             total_rewards=self.total_rewards,
             sample_returns=self.sample_returns,
             time_steps=self.time_steps,

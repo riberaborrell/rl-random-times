@@ -28,11 +28,11 @@ def empty_dir(dir_path):
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
 
-def get_q_learning_agent_dir_path(env):
+def get_agent_dir_path(env, agent):
     dir_path = os.path.join(
         DATA_PATH,
         env.spec.id,
-        'q-learning',
+        agent,
     )
 
     # create dir path if not exists

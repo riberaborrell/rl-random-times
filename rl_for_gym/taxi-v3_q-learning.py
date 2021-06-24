@@ -46,6 +46,7 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, do_render=False):
             if complete:
                 break
 
+            # render observations
             if do_render:
                 agent.env.render()
 
@@ -103,7 +104,7 @@ def main():
     agent = QLearningAgent(env, args.gamma)
 
     # get dir path
-    agent.set_dir_path()
+    agent.set_dir_path('q-learning')
 
     # run q-learning agent
     if not args.load:
@@ -126,15 +127,26 @@ def main():
 
     # do plots
     if args.do_plots:
+
+        # plot sample returns
+        plt = Plot(agent.dir_path, 'sample_returns')
+        plt.one_line_plot(agent.n_episodes, agent.sample_returns)
+
+        # plot total rewards
         plt = Plot(agent.dir_path, 'total_rewards')
-        plt.plot_total_rewards(agent.n_episodes, agent.total_rewards)
+        plt.one_line_plot(agent.n_episodes, agent.total_rewards)
+
+        # plot time steps
+        plt = Plot(agent.dir_path, 'time_steps')
+        plt.one_line_plot(agent.n_episodes, agent.time_steps)
+
+        # plot epsilons
         plt = Plot(agent.dir_path, 'epsilons')
-        plt.plot_total_rewards(agent.n_episodes, agent.epsilons)
+        plt.one_line_plot(agent.n_episodes, agent.epsilons)
 
 
     if args.do_report:
         for ep in np.arange(agent.n_episodes):
-
             # print running avg
             if ep % 1 == 0:
                 msg = agent.log_episodes(ep)

@@ -58,21 +58,9 @@ class Plot:
         self.zmin = zmin
         self.zmax = zmax
 
-    def plot_total_rewards(self, n_episodes, total_rewards):
+    def one_line_plot(self, n_episodes, y):
         x = np.arange(n_episodes)
-        plt.plot(x, total_rewards)
+        plt.plot(x, y)
         plt.xlabel('Episodes')
-        plt.ylabel('Total rewards')
-        plt.title('Total rewards over all episodes in training')
         plt.savefig(self.file_path)
         plt.close()
-
-    def plot_epsilons(self, n_episodes, epsilons):
-        x = np.arange(n_episodes)
-        plt.plot(epsilons)
-        plt.xlabel('Episodes')
-        plt.ylabel('Epsilons')
-        plt.title('Epsilon for episode')
-        plt.savefig(self.file_path)
-        plt.show()
-
