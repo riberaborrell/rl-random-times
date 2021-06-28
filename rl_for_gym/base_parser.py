@@ -32,8 +32,8 @@ def get_base_parser():
         help='Set learning rate. Default: 0.01',
     )
     parser.add_argument(
-        '--epsilon',
-        dest='epsilon',
+        '--eps-init',
+        dest='eps_init',
         type=float,
         default=0.5,
         help='Set probility of picking an action randomly. Default: 0.5',
@@ -77,8 +77,8 @@ def get_base_parser():
         '--step-sliced-episodes',
         dest='step_sliced_episodes',
         type=int,
-        default=1,
-        help='Set slice episodes step. Default: 1',
+        default=10,
+        help='Set slice episodes step. Default: 10',
     )
     parser.add_argument(
         '--batch-size',

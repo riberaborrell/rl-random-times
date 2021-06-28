@@ -1,5 +1,5 @@
 from base_parser import get_base_parser
-from agent import Agent
+from sde_agent import SdeAgent
 from plots import Plot
 
 import numpy as np
@@ -19,7 +19,7 @@ def main():
     env = gym.make('sde-v0')
 
     # initialize Agent
-    agent = Agent(env, args.gamma)
+    agent = SdeAgent(env, args.gamma)
 
     # set dir path
     agent.set_dir_path('random')

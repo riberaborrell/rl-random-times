@@ -64,3 +64,9 @@ class Plot:
         plt.xlabel('Episodes')
         plt.savefig(self.file_path)
         plt.close()
+
+    def one_line_plot_x(self, x, y):
+        plt.plot(x, y)
+        plt.xlabel('x')
+        plt.savefig(self.file_path)
+        plt.close()

@@ -56,6 +56,9 @@ class Agent:
         self.t_initial = None
         self.t_final = None
 
+        # save npz file
+        self.npz_dict = {}
+
     def set_dir_path(self, agent_str):
         self.dir_path = get_agent_dir_path(self.env, agent_str)
 
@@ -122,15 +125,13 @@ class Agent:
         else:
             idx_last_episodes = slice(ep - n_avg_episodes, ep)
 
-        msg = 'ep: {:d}, time steps: {:d}, return: {:.2f}, runn avg ({:d}): {:.2f}, ' \
-                    'total rewards: {:.2f}, runn avg ({:d}): {:.2f}' \
+        msg = 'ep: {:3d}, time steps: {:4d}, return (runn avg ({:d}): {:2.2f}, ' \
+                    'total rewards (runn avg ({:d})): {:.2f}' \
               ''.format(
                     ep,
                     self.time_steps[ep],
-                    self.sample_returns[ep],
                     n_avg_episodes,
                     np.mean(self.sample_returns[idx_last_episodes]),
-                    self.total_rewards[ep],
                     n_avg_episodes,
                     np.mean(self.total_rewards[idx_last_episodes])
                   )
@@ -156,6 +157,34 @@ class Agent:
 
         self.total_rewards = np.append(self.total_rewards, sum(self.rewards))
 
+    def update_npz_dict_agent(self):
+        self.npz_dict['n_episodes'] = self.n_episodes
+        self.npz_dict['epsilons'] = self.epsilons[:-1]
+        #step_sliced_episodes=self.step_sliced_episodes
+        self.npz_dict['total_rewards'] = self.total_rewards
+        self.npz_dict['sample_returns'] = self.sample_returns
+        self.npz_dict['time_steps'] = self.time_steps
+        self.npz_dict['t_initial'] = self.t_initial
+        self.npz_dict['t_final'] = self.t_final
+
+    def save(self):
+        file_path = os.path.join(self.dir_path, 'agent.npz')
+        np.savez(file_path, **self.npz_dict)
+
+    def load(self):
+        try:
+            file_path = os.path.join(self.dir_path, 'agent.npz')
+            data = np.load(file_path, allow_pickle=True)
+            for file_name in data.files:
+                if data[file_name].ndim == 0:
+                    setattr(self, file_name, data[file_name][()])
+                else:
+                    setattr(self, file_name, data[file_name])
+            return True
+        except:
+            msg = 'no agent found'
+            print(msg)
+            return False
 
 class QLearningAgent(Agent):
     '''
@@ -183,33 +212,14 @@ class QLearningAgent(Agent):
         self.q_values = np.empty((0,) + state_space_h.shape[:-1] + action_space_h.shape[:-1])
         #self.q_values = np.zeros(state_space_h.shape[:-1] + action_space_h.shape[:-1])
 
-    def save(self):
-        file_path = os.path.join(self.dir_path, 'agent.npz')
-        np.savez(
-            file_path,
-            n_episodes=self.n_episodes,
-            epsilons=self.epsilons[:-1],
-            #step_sliced_episodes=self.step_sliced_episodes,
-            total_rewards=self.total_rewards,
-            sample_returns=self.sample_returns,
-            time_steps=self.time_steps,
-            q_values=self.q_values,
-            t_initial=self.t_initial,
-            t_final=self.t_final,
-        )
+    def update_npz_dict_q_values(self):
+        # get sliced episodes
+        episodes = np.arange(self.n_episodes)
+        sliced_episodes = episodes[::self.step_sliced_episodes]
+        sliced_q_values = self.q_values[sliced_episodes]
 
-    def load(self):
-        try:
-            file_path = os.path.join(self.dir_path, 'agent.npz')
-            data = np.load(file_path, allow_pickle=True)
-            for file_name in data.files:
-                if data[file_name].ndim == 0:
-                    setattr(self, file_name, data[file_name][()])
-                else:
-                    setattr(self, file_name, data[file_name])
-            return True
-        except:
-            msg = 'no q-learning agent found'
-            print(msg)
-            return False
+        self.npz_dict['last_q_values'] = self.q_values[-1]
+        self.npz_dict['step_sliced_episodes'] = self.step_sliced_episodes
+        self.npz_dict['sliced_episodes'] = sliced_episodes
+        self.npz_dict['sliced_q_values'] = sliced_q_values
 

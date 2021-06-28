@@ -1,4 +1,4 @@
-from agent import QLearningAgent
+from sde_agent import SdeAgent
 from base_parser import get_base_parser
 from plots import Plot
 
@@ -21,34 +21,15 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
     # preallocate information for all epochs
     agent.preallocate_episodes()
 
-    # define state space
-    state_space = Box(
-        low=agent.env.observation_space.low[0],
-        high=agent.env.observation_space.high[0],
-        shape=(1,),
-        dtype=np.float32,
-    )
+    # set state space and discretize
+    agent.set_state_space()
+    agent.discretize_state_space()
+    agent.discretize_action_space()
 
-    # discretize state space
-    h_state = 0.1
-    state_space_h = np.mgrid[[
-        slice(state_space.low[0], state_space.high[0] + h_state, h_state),
-    ]]
-    state_space_h = np.moveaxis(state_space_h, 0, -1)
-
-    # discretize action space
-    action_space = agent.env.action_space
-    h_action = 0.1
-    action_space_h = np.mgrid[[
-        slice(action_space.low[0], action_space.high[0] + h_action, h_action)
-    ]]
-    action_space_h = np.moveaxis(action_space_h, 0, -1)
-
-    #
-    agent.preallocate_tables(state_space_h, action_space_h)
+    agent.preallocate_tables(agent.state_space_h, agent.action_space_h)
 
     # initialize q-values table
-    q_values = np.zeros(state_space_h.shape[:-1] + action_space_h.shape[:-1])
+    q_values = np.zeros(agent.state_space_h.shape[:-1] + agent.action_space_h.shape[:-1])
 
     # set epsilon
     epsilon = agent.eps_init
@@ -78,18 +59,17 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
             if do_render:
                 agent.env.render()
 
-            # interpolate state in our discretized state space
-            idx_state = np.argmin(np.abs(state_space_h[:, 0] - state))
+            # get index of the state
+            idx_state = agent.get_state_idx(state)
 
             # pick greedy action (exploitation)
             if np.random.rand() > epsilon:
                 idx_action = np.argmax(q_values[idx_state])
-                action = action_space_h[idx_action]
+                action = agent.action_space_h[idx_action]
 
             # pick random action (exploration)
             else:
                 action = agent.env.action_space.sample()
-                idx_action = np.argmin(np.abs(action_space_h[:, 0] - action))
 
             # step dynamics forward
             new_obs, r, complete, _ = agent.env.step(action)
@@ -97,8 +77,8 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
 
             #print(k, complete)
 
-            # interpolate new state in our discretized state space
-            idx_new_state = np.argmin(np.abs(state_space_h[:, 0] - new_state))
+            # get idx new state
+            idx_new_state = agent.get_state_idx(new_state)
 
             # update q values
             idx_state_action = (idx_state,) + (idx_action,)
@@ -126,7 +106,7 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, epsilon, eps_decay, do_re
         agent.save_episode(time_steps=k)
 
         # update epsilon
-        epsilon = agent.update_epsilon_linear_decay(epsilon)
+        #epsilon = agent.update_epsilon_linear_decay(epsilon)
         agent.epsilons.append(epsilon)
 
         # logs
@@ -145,7 +125,7 @@ def main():
     env = gym.make('sde-v0')
 
     # initialize Agent
-    agent = QLearningAgent(env, args.gamma)
+    agent = SdeAgent(env, args.gamma)
 
     # get dir path
     agent.set_dir_path('q-learning')
@@ -154,14 +134,18 @@ def main():
     if not args.load:
 
         # set epsilon
-        agent.set_epsilon_parameters(args.epsilon, args.eps_min, args.eps_max, args.eps_decay)
+        agent.set_epsilon_parameters(args.eps_init, args.eps_min, args.eps_max, args.eps_decay)
 
         # q-learning
         q_learning(agent, args.n_episodes_lim, args.n_steps_lim,
-                   args.lr, args.epsilon, args.eps_decay)
+                   args.lr, args.eps_init, args.eps_decay)
 
         # save agent
         agent.step_sliced_episodes = args.step_sliced_episodes
+
+        # save npz file
+        agent.update_npz_dict_agent()
+        agent.update_npz_dict_q_values()
         agent.save()
         return
 
@@ -169,6 +153,11 @@ def main():
     else:
         if not agent.load():
             return
+
+        # set state space and discretize
+        agent.set_state_space()
+        agent.discretize_state_space()
+        agent.discretize_action_space()
 
     # plot total rewards and epsilons
     if args.do_plots:
@@ -188,25 +177,14 @@ def main():
         # plot epsilons
         plot = Plot(agent.dir_path, 'epsilons')
         plot.one_line_plot(agent.n_episodes, agent.epsilons)
+
+        # plot q-table control
+        agent.plot_q_table_control()
         return
 
-
-    episodes = np.arange(agent.n_episodes)
-    sliced_episodes = episodes[::args.step_sliced_episodes]
-    for ep in episodes:
-
-        # print running avg
-        if args.do_report and ep % 1 == 0:
-            msg = agent.log_episodes(ep)
-            print(msg)
-
-        if args.do_plots and ep in sliced_episodes:
-            idx_sliced_ep = int(ep / args.step_sliced_episodes)
-            #v_values = np.max(agent.q_values[idx_sliced_ep], axis=1)
-            q_values = agent.q_values[idx_sliced_ep]
-
-            # print v values table
-            #fig, ax = plt.subplots()
+        # plot q-table 
+        for idx, ep in enumerate(agent.sliced_episodes):
+            q_values = agent.sliced_q_values[idx]
             plt.imshow(
                 q_values,
                 cmap=cm.RdYlGn,
@@ -217,6 +195,14 @@ def main():
             plt.colorbar()
             plt.show()
 
+
+    # print running avg
+    episodes = np.arange(agent.n_episodes)
+    for ep in episodes:
+
+        if args.do_report and ep % 1 == 0:
+            msg = agent.log_episodes(ep)
+            print(msg)
 
 
 if __name__ == '__main__':
