@@ -1,6 +1,6 @@
 from sde_agent import SdeAgent
 from base_parser import get_base_parser
-from plots import Plot
+from figures import MyFigure
 
 import gym
 import gym_sde
@@ -147,7 +147,6 @@ def main():
         agent.update_npz_dict_agent()
         agent.update_npz_dict_q_values()
         agent.save()
-        return
 
     # load already run agent
     else:
@@ -162,21 +161,24 @@ def main():
     # plot total rewards and epsilons
     if args.do_plots:
 
+        # episodes array
+        episodes = np.arange(agent.n_episodes)
+
         # plot sample returns
-        plot = Plot(agent.dir_path, 'sample_returns')
-        plot.one_line_plot(agent.n_episodes, agent.sample_returns)
+        fig = MyFigure(agent.dir_path, 'sample_returns')
+        fig.plot_one_line(episodes, agent.sample_returns)
 
         # plot total rewards
-        plot = Plot(agent.dir_path, 'total_rewards')
-        plot.one_line_plot(agent.n_episodes, agent.total_rewards)
+        fig = MyFigure(agent.dir_path, 'total_rewards')
+        fig.plot_one_line(episodes, agent.total_rewards)
 
         # plot time steps
-        plot = Plot(agent.dir_path, 'time_steps')
-        plot.one_line_plot(agent.n_episodes, agent.time_steps)
+        fig = MyFigure(agent.dir_path, 'time_steps')
+        fig.plot_one_line(episodes, agent.time_steps)
 
         # plot epsilons
-        plot = Plot(agent.dir_path, 'epsilons')
-        plot.one_line_plot(agent.n_episodes, agent.epsilons)
+        fig = MyFigure(agent.dir_path, 'epsilons')
+        fig.plot_one_line(episodes, agent.epsilons[:-1])
 
         # plot q-table control
         agent.plot_q_table_control()

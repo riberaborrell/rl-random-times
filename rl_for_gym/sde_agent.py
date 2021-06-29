@@ -1,7 +1,7 @@
 from agent import QLearningAgent
 from gym.spaces.box import Box
 
-from plots import Plot
+from figures import MyFigure
 
 import numpy as np
 
@@ -54,14 +54,11 @@ class SdeAgent(QLearningAgent):
         x = self.state_space_h[:, 0]
         control = np.empty_like(x)
 
-        q_values = self.last_q_values
-
         for idx, x_k in enumerate(x):
-            idx_action = np.argmax(q_values[idx])
+            idx_action = np.argmax(self.last_q_values[idx])
             control[idx] = self.action_space_h[idx_action]
 
-        breakpoint()
         # plot q-table control
-        plot = Plot(self.dir_path, 'control')
-        plot.one_line_plot_x(x, control)
+        fig = MyFigure(self.dir_path, 'control')
+        fig.plot_one_line(x, control)
 

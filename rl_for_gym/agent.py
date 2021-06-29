@@ -159,7 +159,7 @@ class Agent:
 
     def update_npz_dict_agent(self):
         self.npz_dict['n_episodes'] = self.n_episodes
-        self.npz_dict['epsilons'] = self.epsilons[:-1]
+        self.npz_dict['epsilons'] = self.epsilons
         #step_sliced_episodes=self.step_sliced_episodes
         self.npz_dict['total_rewards'] = self.total_rewards
         self.npz_dict['sample_returns'] = self.sample_returns
@@ -215,11 +215,12 @@ class QLearningAgent(Agent):
     def update_npz_dict_q_values(self):
         # get sliced episodes
         episodes = np.arange(self.n_episodes)
-        sliced_episodes = episodes[::self.step_sliced_episodes]
-        sliced_q_values = self.q_values[sliced_episodes]
+        self.sliced_episodes = episodes[::self.step_sliced_episodes]
+        self.sliced_q_values = self.q_values[self.sliced_episodes]
+        self.last_q_values = self.q_values[-1]
 
-        self.npz_dict['last_q_values'] = self.q_values[-1]
+        self.npz_dict['last_q_values'] = self.last_q_values
         self.npz_dict['step_sliced_episodes'] = self.step_sliced_episodes
-        self.npz_dict['sliced_episodes'] = sliced_episodes
-        self.npz_dict['sliced_q_values'] = sliced_q_values
+        self.npz_dict['sliced_episodes'] = self.sliced_episodes
+        self.npz_dict['sliced_q_values'] = self.sliced_q_values
 

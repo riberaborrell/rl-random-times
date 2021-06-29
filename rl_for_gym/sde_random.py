@@ -1,6 +1,6 @@
 from base_parser import get_base_parser
 from sde_agent import SdeAgent
-from plots import Plot
+from figures import MyFigure
 
 import numpy as np
 import gym
@@ -81,13 +81,16 @@ def main():
 
     if args.do_plots:
 
+        # get episodes array
+        episodes = np.arange(agent.n_episodes)
+
         # plot total rewards
-        plt = Plot(agent.dir_path, 'total_rewards')
-        plt.one_line_plot(agent.n_episodes, agent.total_rewards)
+        fig = MyFigure(agent.dir_path, 'total_rewards')
+        fig.plot_one_line(episodes, agent.total_rewards)
 
         # plot time steps
-        plt = Plot(agent.dir_path, 'time_steps')
-        plt.one_line_plot(agent.n_episodes, agent.time_steps)
+        fig = MyFigure(agent.dir_path, 'time_steps')
+        fig.plot_one_line(episodes, agent.time_steps)
 
 
 if __name__ == '__main__':
