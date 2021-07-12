@@ -49,8 +49,8 @@ def get_base_parser():
         '--eps-min',
         dest='eps_min',
         type=float,
-        default=0.01,
-        help='Set minimum value for epsilon. Default: 0.01',
+        default=0.,
+        help='Set minimum value for epsilon. Default: 0.0',
     )
     parser.add_argument(
         '--eps-max',

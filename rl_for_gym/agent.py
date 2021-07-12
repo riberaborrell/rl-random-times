@@ -13,7 +13,7 @@ DATA_PATH = os.path.join(PROJECT_PATH, 'data')
 class Agent:
     '''
     '''
-    def __init__(self, env, gamma=0.99):
+    def __init__(self, env, gamma=0.99, logs=False):
         assert 0 <= gamma <= 1, ''
 
         # environment information
@@ -51,22 +51,37 @@ class Agent:
         self.total_rewards = None
         self.sample_returns = None
         self.time_steps = None
+        self.avg_total_rewards = None
+        self.avg_sample_returns = None
+
+        # discretized state space and action space
+        self.h_state = None
+        self.state_space_h = None
+        self.h_action = None
+        self.action_space_h = None
+
+        # v values and q values tables
+        self.v_tables = None
+        self.q_tables = None
 
         # computation time
-        self.t_initial = None
-        self.t_final = None
+        self.ct = None
 
         # save npz file
         self.npz_dict = {}
+
+        # logs flag
+        self.logs = logs
 
     def set_dir_path(self, agent_str):
         self.dir_path = get_agent_dir_path(self.env, agent_str)
 
     def start_timer(self):
-        self.t_initial = time.perf_counter()
+        self.ct_initial = time.perf_counter()
 
     def stop_timer(self):
-        self.t_final = time.perf_counter()
+        self.ct_final = time.perf_counter()
+        self.ct = self.t_final - self.t_initial
 
     def set_epsilon_parameters(self, eps_init, eps_min, eps_max, eps_decay):
         self.eps_init = eps_init
@@ -75,25 +90,21 @@ class Agent:
         self.eps_decay = eps_decay
         self.epsilons = [eps_init]
 
-    def update_epsilon_linear_decay(self, eps):
-        return self.eps_min + (self.eps_max - self.eps_min) * self.eps_decay * eps
+    def set_glie_epsilons(self):
+        self.epsilons = np.array([1 / (ep + 1) for ep in np.arange(self.n_episodes)])
 
     def update_epsilon_exp_decay(self, episode):
         return self.eps_min + (self.eps_max - self.eps_min) * np.exp( - self.eps_decay * episode)
+
+    def update_epsilon_linear_decay(self, eps):
+        return self.eps_min + (self.eps_max - self.eps_min) * self.eps_decay * eps
+
 
     def reset_rewards(self):
         self.rewards = np.empty(0)
 
     def save_reward(self, r):
         self.rewards = np.append(self.rewards, r)
-
-    #TODO! generalize for different types of observation spaces and action spaces
-    def reset_trajectory(self, env):
-        self.obs_space_dim = env.observation_space.shape[0]
-
-        self.states = np.empty((0, self.obs_space_dim))
-        self.actions = np.empty(0, dtype=np.int)
-        self.rewards = np.empty(0)
 
     def compute_discounted_rewards(self):
         ''' discount the discount factor to the rewards
@@ -110,30 +121,37 @@ class Agent:
         self.returns = self.discounted_rewards[::-1].cumsum()[::-1]
 
     def preallocate_episodes(self):
-        self.total_rewards = np.empty(0)
-        self.sample_returns = np.empty(0)
-        self.time_steps = np.empty(0, dtype=np.int32)
+        self.total_rewards = np.empty(self.n_episodes)
+        self.avg_total_rewards = np.empty(self.n_episodes)
+        self.sample_returns = np.empty(self.n_episodes)
+        self.avg_sample_returns = np.empty(self.n_episodes)
+        self.time_steps = np.empty(self.n_episodes, dtype=np.int32)
 
-    def save_episode(self, time_steps):
-        self.total_rewards = np.append(self.total_rewards, sum(self.rewards))
-        self.sample_returns = np.append(self.sample_returns, self.returns[0])
-        self.time_steps = np.append(self.time_steps, time_steps)
+    def save_episode(self, ep, time_steps):
 
-    def log_episodes(self, ep, n_avg_episodes=100):
-        if ep < n_avg_episodes:
-            idx_last_episodes = slice(0, ep)
+        # get indices episodes to averaged
+        if ep < self.n_avg_episodes:
+            idx_last_episodes = slice(0, ep + 1)
         else:
-            idx_last_episodes = slice(ep - n_avg_episodes, ep)
+            idx_last_episodes = slice(ep + 1 - self.n_avg_episodes, ep + 1)
+
+        self.total_rewards[ep] = sum(self.rewards)
+        self.avg_total_rewards[ep] = np.mean(self.total_rewards[idx_last_episodes])
+        self.sample_returns[ep] = self.returns[0]
+        self.avg_sample_returns[ep] = np.mean(self.sample_returns[idx_last_episodes])
+        self.time_steps[ep] = time_steps
+
+    def log_episodes(self, ep):
 
         msg = 'ep: {:3d}, time steps: {:4d}, return (runn avg ({:d}): {:2.2f}, ' \
                     'total rewards (runn avg ({:d})): {:.2f}' \
               ''.format(
                     ep,
                     self.time_steps[ep],
-                    n_avg_episodes,
-                    np.mean(self.sample_returns[idx_last_episodes]),
-                    n_avg_episodes,
-                    np.mean(self.total_rewards[idx_last_episodes])
+                    self.n_avg_episodes,
+                    self.avg_sample_returns[ep],
+                    self.n_avg_episodes,
+                    self.avg_total_rewards[ep],
                   )
         return msg
 
@@ -159,13 +177,35 @@ class Agent:
 
     def update_npz_dict_agent(self):
         self.npz_dict['n_episodes'] = self.n_episodes
+        self.npz_dict['n_avg_episodes'] = self.n_avg_episodes
         self.npz_dict['epsilons'] = self.epsilons
         #step_sliced_episodes=self.step_sliced_episodes
         self.npz_dict['total_rewards'] = self.total_rewards
+        self.npz_dict['avg_total_rewards'] = self.avg_total_rewards
         self.npz_dict['sample_returns'] = self.sample_returns
+        self.npz_dict['avg_sample_returns'] = self.avg_sample_returns
         self.npz_dict['time_steps'] = self.time_steps
-        self.npz_dict['t_initial'] = self.t_initial
-        self.npz_dict['t_final'] = self.t_final
+        self.npz_dict['ct'] = self.ct
+
+    def preallocate_tables(self, state_space_h, action_space_h):
+        self.state_space_h = state_space_h
+        self.action_space_h = action_space_h
+
+        self.q_tables = np.empty((0,) + state_space_h.shape[:-1] + action_space_h.shape[:-1])
+        #self.q_tables = np.zeros(state_space_h.shape[:-1] + action_space_h.shape[:-1])
+
+    def update_npz_dict_last_q_table(self):
+        self.npz_dict['last_q_table'] = self.q_tables[-1]
+
+    def update_npz_dict_q_values(self):
+        # get sliced episodes
+        episodes = np.arange(self.n_episodes)
+        self.sliced_episodes = episodes[::self.step_sliced_episodes]
+        self.sliced_q_tables = self.q_tables[self.sliced_episodes]
+
+        self.npz_dict['step_sliced_episodes'] = self.step_sliced_episodes
+        self.npz_dict['sliced_episodes'] = self.sliced_episodes
+        self.npz_dict['sliced_q_values'] = self.sliced_q_tables
 
     def save(self):
         file_path = os.path.join(self.dir_path, 'agent.npz')
@@ -185,42 +225,3 @@ class Agent:
             msg = 'no agent found'
             print(msg)
             return False
-
-class QLearningAgent(Agent):
-    '''
-    '''
-
-    def __init__(self, env, gamma=0.99):
-        '''
-        '''
-        super().__init__(env, gamma)
-
-        # discretized state space and action space
-        self.h_state = None
-        self.state_space_h = None
-        self.h_action = None
-        self.action_space_h = None
-
-        # v values and q values tables
-        self.v_values = None
-        self.q_values = None
-
-    def preallocate_tables(self, state_space_h, action_space_h):
-        self.state_space_h = state_space_h
-        self.action_space_h = action_space_h
-
-        self.q_values = np.empty((0,) + state_space_h.shape[:-1] + action_space_h.shape[:-1])
-        #self.q_values = np.zeros(state_space_h.shape[:-1] + action_space_h.shape[:-1])
-
-    def update_npz_dict_q_values(self):
-        # get sliced episodes
-        episodes = np.arange(self.n_episodes)
-        self.sliced_episodes = episodes[::self.step_sliced_episodes]
-        self.sliced_q_values = self.q_values[self.sliced_episodes]
-        self.last_q_values = self.q_values[-1]
-
-        self.npz_dict['last_q_values'] = self.last_q_values
-        self.npz_dict['step_sliced_episodes'] = self.step_sliced_episodes
-        self.npz_dict['sliced_episodes'] = self.sliced_episodes
-        self.npz_dict['sliced_q_values'] = self.sliced_q_values
-
