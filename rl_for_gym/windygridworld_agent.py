@@ -31,6 +31,13 @@ class WindyGridworldAgent(Agent):
             self.env.action_space.n,
         ), dtype=np.float64)
 
+    def initialize_eligibility_traces(self):
+        self.e_table = np.zeros((
+            self.env.observation_space[0].n,
+            self.env.observation_space[1].n,
+            self.env.action_space.n,
+        ), dtype=np.float64)
+
     def get_epsilon_greedy_action(self, ep, state):
         # pick greedy action (exploitation)
         epsilon = self.epsilons[ep]
@@ -200,11 +207,114 @@ class WindyGridworldAgent(Agent):
         self.npz_dict['last_n_table'] = self.n_table
         self.npz_dict['last_q_table'] = self.q_table
 
+    def sarsa_lambda(self, n_episodes_lim, n_steps_lim, alpha, lam):
+
+        # preallocate information for all epochs
+        self.n_episodes = n_episodes_lim
+        self.preallocate_episodes()
+
+        # initialize frequency and q-values table
+        self.initialize_frequency_table()
+        self.initialize_q_table()
+        self.initialize_eligibility_traces()
+
+        # set epsilons
+        self.set_glie_epsilons()
+
+        # episodes
+        for ep in np.arange(self.n_episodes):
+
+            # reset environment and choose action
+            state = self.env.reset()
+            action = self.get_epsilon_greedy_action(ep, state)
+
+            # reset trajectory
+            self.reset_trajectory()
+
+            # terminal state flag
+            complete = False
+
+            # sample episode
+            for k in np.arange(n_steps_lim):
+
+                # interrupt if we are in a terminal state
+                if complete:
+                    break
+
+                # step dynamics forward
+                new_state, r, complete, _ = self.env.step(action)
+
+                # get new action 
+                new_action = self.get_epsilon_greedy_action(ep, new_state)
+
+                idx = tuple(state) + (action,)
+                idx_new = tuple(new_state) + (new_action,)
+
+                # update frequency table
+                self.n_table[idx] += 1
+
+                # compute temporal difference error
+                td_error = r + self.gamma * self.q_table[idx_new] - self.q_table[idx]
+
+                # update eligibility traces table
+                self.e_table[idx] += 1
+
+                # update the whole q-value and eligibility traces tables
+                self.q_table = self.q_table + alpha * td_error * self.e_table
+                self.e_table = self.e_table * self.gamma * lam
+
+                # save reward
+                self.save_reward(r)
+
+                # update state and action
+                state = new_state
+                action = new_action
+
+            # compute return
+            self.compute_discounted_rewards()
+            self.compute_returns()
+
+            # save time steps
+            self.save_episode(ep, k)
+
+            # logs
+            if self.logs:
+                msg = self.log_episodes(ep)
+                print(msg)
+
+        # save number of episodes
+        self.n_episodes = ep + 1
+
+        # update npz dict
+        self.update_npz_dict_agent()
+
+        # save q_values table
+        self.npz_dict['last_n_table'] = self.n_table
+        self.npz_dict['last_q_table'] = self.q_table
+
     def compute_frequency_table(self):
         self.frequency_table = np.sum(self.last_n_table, axis=2)
 
     def compute_policy_table(self):
         self.policy_table = np.argmax(self.last_q_table, axis=2)
+
+    def plot_sample_returns(self):
+        y = np.vstack((self.sample_returns, self.avg_sample_returns))
+        fig = MyFigure(self.dir_path, 'sample_returns')
+        fig.plot_multiple_lines(self.episodes, y)
+
+    def plot_total_rewards(self):
+        fig = MyFigure(self.dir_path, 'total_rewards')
+        y = np.vstack((self.total_rewards, self.avg_total_rewards))
+        fig.plot_multiple_lines(self.episodes, y)
+
+    def plot_time_steps(self):
+        fig = MyFigure(self.dir_path, 'time_steps')
+        fig.plot_one_line(self.episodes, self.time_steps)
+
+    def plot_epsilons(self):
+        fig = MyFigure(self.dir_path, 'epsilons')
+        fig.plot_one_line(self.episodes, self.epsilons)
 
     def plot_frequency(self):
         self.compute_frequency_table()

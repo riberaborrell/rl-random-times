@@ -32,6 +32,13 @@ def get_base_parser():
         help='Set learning rate. Default: 0.01',
     )
     parser.add_argument(
+        '--lam',
+        dest='lam',
+        type=float,
+        default=0.5,
+        help='Set lambda parameter for the lambda Sarsa algorithm. Default: 0.5',
+    )
+    parser.add_argument(
         '--eps-init',
         dest='eps_init',
         type=float,

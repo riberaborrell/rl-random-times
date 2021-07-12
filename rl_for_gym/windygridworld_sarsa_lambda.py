@@ -21,7 +21,7 @@ def main():
     agent = WindyGridworldAgent(env, args.gamma, logs=args.do_report)
 
     # get dir path
-    agent.set_dir_path('mc-learning')
+    agent.set_dir_path('sarsa-lambda')
 
     # run mc learning agent
     if not args.load:
@@ -29,8 +29,8 @@ def main():
         # set number of averaged episodes 
         agent.n_avg_episodes = 100
 
-        # mc learning algorithm
-        agent.mc_learning(args.n_episodes_lim, args.n_steps_lim)
+        # sarsa algorithm
+        agent.sarsa_lambda(args.n_episodes_lim, args.n_steps_lim, args.lr, args.lam)
 
         # save agent
         agent.save()
@@ -60,4 +60,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
