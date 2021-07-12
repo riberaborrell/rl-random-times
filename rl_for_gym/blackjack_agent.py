@@ -51,8 +51,6 @@ class BlackjackAgent(Agent):
         # episodes
         for ep in np.arange(self.n_episodes):
 
-            print(self.epsilons[ep])
-
             # reset environment
             observation = self.env.reset()
             state = self.get_state(observation)
