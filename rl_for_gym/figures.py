@@ -61,7 +61,10 @@ class MyFigure(Figure):
         self.ymax = ymax
 
     def plot_one_line(self, x, y):
+        assert x.ndim == y.ndim == 1, ''
+        assert x.shape[0] == y.shape[0], ''
 
+        # axes of the figure
         ax = self.axes[0]
 
         # plot
@@ -69,3 +72,22 @@ class MyFigure(Figure):
 
         # save figure
         self.savefig(self.file_path)
+
+    def plot_multiple_lines(self, x, y):
+        assert x.ndim == 1, ''
+        assert y.ndim == 2, ''
+        assert x.shape[0] == y.shape[1], ''
+
+        # number of lines to plot
+        n_lines = y.shape[0]
+
+        # axes of the figure
+        ax = self.axes[0]
+
+        # plot lines
+        for i in range(n_lines):
+            ax.plot(x, y[i])
+
+        # save figure
+        self.savefig(self.file_path)
+
