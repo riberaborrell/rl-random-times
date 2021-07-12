@@ -71,11 +71,6 @@ def main():
         fig = MyFigure(agent.dir_path, 'epsilons')
         fig.plot_one_line(episodes, agent.epsilons)
 
-        # plot policies
-        agent.compute_policy_table()
-        fig = MyFigure(agent.dir_path, 'policy_table')
-        fig.axes[0].imshow(agent.policy_table, origin='lower')
-        fig.savefig(fig.file_path)
 
 
     if args.do_report:

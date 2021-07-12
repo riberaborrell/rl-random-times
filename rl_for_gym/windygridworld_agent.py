@@ -1,4 +1,5 @@
 from agent import Agent
+from figures import MyFigure
 
 import numpy as np
 
@@ -199,22 +200,36 @@ class WindyGridworldAgent(Agent):
         self.npz_dict['last_n_table'] = self.n_table
         self.npz_dict['last_q_table'] = self.q_table
 
+    def compute_frequency_table(self):
+        self.frequency_table = np.sum(self.last_n_table, axis=2)
+
     def compute_policy_table(self):
-        self.policy_table = np.zeros((
-            self.env.observation_space[0].n,
-            self.env.observation_space[1].n,
-        ), dtype=np.int32)
+        self.policy_table = np.argmax(self.last_q_table, axis=2)
 
-        self.frequency_table = np.zeros((
-            self.env.observation_space[0].n,
-            self.env.observation_space[1].n,
-        ), dtype=np.int32)
+    def plot_frequency(self):
+        self.compute_frequency_table()
+        fig = MyFigure(self.dir_path, 'frequency_table')
+        fig.axes[0].imshow(self.frequency_table, origin='lower')
+        fig.savefig(fig.file_path)
 
-        for i in range(self.env.observation_space[0].n):
-            for j in range(self.env.observation_space[1].n):
+    def plot_policy(self):
 
-                # get action index of the highest action-value pair
-                self.policy_table[i, j] = np.argmax(self.last_q_table[i, j, :])
+        # plot policy table
+        self.compute_policy_table()
+        fig = MyFigure(self.dir_path, 'policy_table')
+        fig.axes[0].imshow(self.policy_table, origin='lower')
+        fig.savefig(fig.file_path)
 
-                # count how many time a state tuple has been visit
-                self.frequency_table[i, j] = np.sum(self.last_n_table[i, j, :])
+        # plot policy vector field
+        x = np.arange(self.env.observation_space[0].n)
+        y = np.arange(self.env.observation_space[1].n)
+        X, Y = np.meshgrid(x, y, indexing='ij')
+        U = np.empty(X.shape)
+        V = np.empty(Y.shape)
+        for i in x:
+            for j in y:
+                U[i, j] = self.env.moves[self.policy_table[i, j]][0]
+                V[i, j] = self.env.moves[self.policy_table[i, j]][1]
+        fig = MyFigure(self.dir_path, 'policy_vector_field')
+        fig.axes[0].quiver(X, Y, U, V)
+        fig.savefig(fig.file_path)

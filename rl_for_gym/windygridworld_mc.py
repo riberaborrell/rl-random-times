@@ -37,7 +37,7 @@ def main():
 
         # mc learning
         agent.step_sliced_episodes = args.step_sliced_episodes
-        agent.mc_learning(args.n_episodes_lim, args.n_steps_lim, args.lr)
+        agent.mc_learning(args.n_episodes_lim, args.n_steps_lim)
 
         # save agent
         agent.save()
@@ -71,16 +71,11 @@ def main():
         fig = MyFigure(agent.dir_path, 'epsilons')
         fig.plot_one_line(episodes, agent.epsilons)
 
-        # plot policies
-        agent.compute_policy_table()
-        fig = MyFigure(agent.dir_path, 'policy_table')
-        fig.axes[0].imshow(agent.policy_table, origin='lower')
-        fig.savefig(fig.file_path)
+        # plot frequency table
+        agent.plot_frequency()
 
-        # plot n table
-        fig = MyFigure(agent.dir_path, 'frequency_table')
-        fig.axes[0].imshow(agent.frequency_table, origin='lower')
-        fig.savefig(fig.file_path)
+        # plot policies
+        agent.plot_policy()
 
 
     if args.do_report:
