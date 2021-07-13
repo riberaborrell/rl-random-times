@@ -1,12 +1,13 @@
-from agent import QLearningAgent
+from agent import Agent
 from base_parser import get_base_parser
-from plots import Plot
+from figures import MyFigure
 
 import gym
 from gym.spaces.box import Box
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 
 def get_parser():
@@ -14,7 +15,17 @@ def get_parser():
     parser.description = ''
     return parser
 
-def q_learning(agent, n_episodes_lim, n_steps_lim, lr, do_render=False):
+def reset_trajectory(agent):
+    agent.states = np.empty(0, dtype=np.int32)
+    agent.actions = np.empty(0, dtype=np.int32)
+    agent.rewards = np.empty(0)
+
+def save_history(agent, state, action, r):
+    agent.states = np.append(agent.states, state)
+    agent.actions = np.append(agent.actions, action)
+    agent.rewards = np.append(agent.rewards, r)
+
+def mc_learning(agent, n_episodes_lim, n_steps_lim, lr, do_render=False):
 
     # preallocate information for all epochs
     agent.preallocate_episodes()
@@ -22,24 +33,25 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, do_render=False):
     # preallocate q-value table
     agent.q_values = np.empty((0, agent.env.observation_space.n, agent.env.action_space.n))
 
-    # initialize q-values table
+    # initialize n and q-values tables
+    N = np.zeros((agent.env.observation_space.n, agent.env.action_space.n))
     q_values = np.zeros((agent.env.observation_space.n, agent.env.action_space.n))
 
     # set epsilon
     epsilon = agent.eps_init
 
-    # different trajectories
     for ep in np.arange(n_episodes_lim):
 
         # reset environment
         state = agent.env.reset()
 
         # reset trajectory
-        agent.reset_rewards()
+        reset_trajectory(agent)
 
         # terminal state flag
         complete = False
 
+        # sample episode
         for k in np.arange(n_steps_lim):
 
             # interrupt if we are in a terminal state
@@ -61,26 +73,31 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, do_render=False):
             # step dynamics forward
             new_state, r, complete, _ = agent.env.step(action)
 
-            # update q values
-            q_values[state, action] += lr * (
-                  r \
-                + agent.gamma * np.max(q_values[new_state, :]) \
-                - q_values[state, action]
-            )
-
-            # save reward
-            agent.save_reward(r)
+            # save state, actions and reward
+            save_history(agent, state, action, r)
 
             # update state
             state = new_state
 
 
-        # save q-value
-        agent.q_values = np.concatenate((agent.q_values, q_values[np.newaxis, :]), axis=0)
-
         # compute return
         agent.compute_discounted_rewards()
         agent.compute_returns()
+
+        # update q values
+        n_steps_trajectory = agent.states.shape[0]
+        for k in np.arange(n_steps_trajectory):
+
+            state = agent.states[k]
+            action = agent.actions[k]
+            g = agent.returns[k]
+
+            N[state, action] += 1
+            q_values[state, action] += (g - q_values[state, action]) / N[state, action]
+
+
+        # save q-value
+        agent.q_values = np.concatenate((agent.q_values, q_values[np.newaxis, :]), axis=0)
 
         # save time steps
         agent.save_episode(time_steps=k)
@@ -93,6 +110,10 @@ def q_learning(agent, n_episodes_lim, n_steps_lim, lr, do_render=False):
     # save number of episodes
     agent.n_episodes = ep + 1
 
+    # update npz dict
+    agent.update_npz_dict_agent()
+    agent.update_npz_dict_q_values()
+
 
 def main():
     args = get_parser().parse_args()
@@ -101,7 +122,7 @@ def main():
     env = gym.make('Taxi-v3')
 
     # initialize Agent
-    agent = QLearningAgent(env, args.gamma)
+    agent = Agent(env, args.gamma)
 
     # get dir path
     agent.set_dir_path('q-learning')
@@ -110,15 +131,14 @@ def main():
     if not args.load:
 
         # set epsilon
-        agent.set_epsilon_parameters(args.epsilon, args.eps_min, args.eps_max, args.eps_decay)
+        agent.set_epsilon_parameters(args.eps_init, args.eps_min, args.eps_max, args.eps_decay)
 
         # q-learning
-        q_learning(agent, args.n_episodes_lim, args.n_steps_lim, args.lr)
+        agent.step_sliced_episodes = args.step_sliced_episodes
+        mc_learning(agent, args.n_episodes_lim, args.n_steps_lim, args.lr)
 
         # save agent
-        agent.step_sliced_episodes = args.step_sliced_episodes
         agent.save()
-        return
 
     # load already run agent
     else:
@@ -128,21 +148,37 @@ def main():
     # do plots
     if args.do_plots:
 
+        # episodes array
+        episodes = np.arange(agent.n_episodes)
+
         # plot sample returns
-        plt = Plot(agent.dir_path, 'sample_returns')
-        plt.one_line_plot(agent.n_episodes, agent.sample_returns)
+        fig = MyFigure(agent.dir_path, 'sample_returns')
+        fig.plot_one_line(episodes, agent.sample_returns)
 
         # plot total rewards
-        plt = Plot(agent.dir_path, 'total_rewards')
-        plt.one_line_plot(agent.n_episodes, agent.total_rewards)
+        fig = MyFigure(agent.dir_path, 'total_rewards')
+        fig.plot_one_line(episodes, agent.total_rewards)
 
         # plot time steps
-        plt = Plot(agent.dir_path, 'time_steps')
-        plt.one_line_plot(agent.n_episodes, agent.time_steps)
+        fig = MyFigure(agent.dir_path, 'time_steps')
+        fig.plot_one_line(episodes, agent.time_steps)
 
         # plot epsilons
-        plt = Plot(agent.dir_path, 'epsilons')
-        plt.one_line_plot(agent.n_episodes, agent.epsilons)
+        fig = MyFigure(agent.dir_path, 'epsilons')
+        fig.plot_one_line(episodes, agent.epsilons[:-1])
+        return
+
+        # plot q-table
+        for idx, ep in enumerate(agent.sliced_episodes):
+            q_values = agent.sliced_q_values[idx]
+            plt.imshow(
+                q_values,
+                cmap=cm.RdYlGn,
+                vmin=q_values.min(),
+                vmax=q_values.max(),
+            )
+            plt.colorbar()
+            plt.show()
 
 
     if args.do_report:

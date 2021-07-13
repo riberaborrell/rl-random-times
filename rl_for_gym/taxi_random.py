@@ -1,6 +1,6 @@
 from base_parser import get_base_parser
 from agent import Agent
-from plots import Plot
+from figures import MyFigure
 
 import numpy as np
 import gym
@@ -15,6 +15,7 @@ def main():
 
     # create gym env 
     env = gym.make('Taxi-v3')
+    breakpoint()
 
     # initialize Agent
     agent = Agent(env, args.gamma)
@@ -66,31 +67,30 @@ def main():
         # save time steps
         agent.save_episode(time_steps=k)
 
+        # logs
+        if args.do_report:
+            msg = agent.log_episodes(ep)
+            print(msg)
+
     # save number of episodes
     agent.n_episodes = ep + 1
 
     if args.do_plots:
 
+        # episodes array
+        episodes = np.arange(agent.n_episodes)
+
         # plot sample returns
-        plt = Plot(agent.dir_path, 'sample_returns')
-        plt.one_line_plot(agent.n_episodes, agent.sample_returns)
+        fig = MyFigure(agent.dir_path, 'sample_returns')
+        fig.plot_one_line(episodes, agent.sample_returns)
 
         # plot total rewards
-        plt = Plot(agent.dir_path, 'total_rewards')
-        plt.one_line_plot(agent.n_episodes, agent.total_rewards)
+        fig = MyFigure(agent.dir_path, 'total_rewards')
+        fig.plot_one_line(episodes, agent.total_rewards)
 
         # plot time steps
-        plt = Plot(agent.dir_path, 'time_steps')
-        plt.one_line_plot(agent.n_episodes, agent.time_steps)
-
-
-    if args.do_report:
-        for ep in np.arange(agent.n_episodes):
-
-            # print running avg
-            if ep % 1 == 0:
-                msg = agent.log_episodes(ep)
-                print(msg)
+        fig = MyFigure(agent.dir_path, 'time_steps')
+        fig.plot_one_line(episodes, agent.time_steps)
 
 
 if __name__ == '__main__':
