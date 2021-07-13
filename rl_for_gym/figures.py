@@ -6,6 +6,13 @@ import numpy as np
 import os
 
 
+PLOT_TYPES = [
+    'linear',
+    'semilogx',
+    'semilogy',
+    'loglog',
+]
+
 class MyFigure(Figure):
     ''' Figure with one axes.
     '''
@@ -20,6 +27,9 @@ class MyFigure(Figure):
 
         # add set of subplots
         _ = self.subplots()
+
+        # default plot type
+        self.plot_type = 'linear'
 
     @property
     def file_path(self):
@@ -60,6 +70,10 @@ class MyFigure(Figure):
         self.ymin = ymin
         self.ymax = ymax
 
+    def set_plot_type(self, plot_type):
+        assert plot_type in PLOT_TYPES, ''
+        self.plot_type = plot_type
+
     def plot_one_line(self, x, y):
         assert x.ndim == y.ndim == 1, ''
         assert x.shape[0] == y.shape[0], ''
@@ -68,7 +82,14 @@ class MyFigure(Figure):
         ax = self.axes[0]
 
         # plot
-        ax.plot(x, y)
+        if self.plot_type == 'linear':
+            ax.plot(x, y)
+        elif self.plot_type == 'semilogx':
+            ax.semilogx(x, y)
+        elif self.plot_type == 'semilogy':
+            ax.semilogy(x, y)
+        elif self.plot_type == 'loglog':
+            ax.loglog(x, y)
 
         # save figure
         self.savefig(self.file_path)
