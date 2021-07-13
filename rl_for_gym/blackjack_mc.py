@@ -32,7 +32,6 @@ def main():
 
         # set epsilons
         agent.set_glie_epsilons()
-        #agent.set_exp_decay_epsilons(args.eps_min, args.eps_max, args.eps_decay)
 
         # mc learning
         agent.mc_learning(args.n_steps_lim, args.alpha)

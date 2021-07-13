@@ -1,14 +1,16 @@
-from base_parser import get_base_parser
 from windygridworld_agent import WindyGridworldAgent
+from base_parser import get_base_parser
 
-import numpy as np
 import gym
 import gym_gridworlds
+import numpy as np
+
 
 def get_parser():
     parser = get_base_parser()
     parser.description = ''
     return parser
+
 
 def main():
     args = get_parser().parse_args()
@@ -17,10 +19,15 @@ def main():
     env = gym.make('WindyGridworld-v0')
 
     # initialize Agent
-    agent = WindyGridworldAgent(env, args.gamma)
+    agent = WindyGridworldAgent(env, args.gamma, logs=args.do_report)
 
-    # set dir path
-    agent.set_dir_path('random')
+    # get dir path
+    agent_type = 'mc-learning'
+    agent.set_dir_path(agent_type)
+
+    # load already run agent
+    agent.load()
+    q_table = agent.last_q_table
 
     # preallocate information for all epochs
     agent.n_episodes = args.n_episodes_lim
@@ -33,7 +40,7 @@ def main():
     for ep in np.arange(agent.n_episodes):
 
         # reset environment
-        agent.env.reset()
+        state = agent.env.reset()
 
         # reset trajectory
         agent.reset_rewards()
@@ -47,8 +54,8 @@ def main():
             if complete:
                 break
 
-            # take a random action
-            action = env.action_space.sample()
+            # take action with highest q-value 
+            action = np.argmax(q_table[state])
 
             # step dynamics forward
             _, r, complete, _ = env.step(action)
@@ -73,6 +80,7 @@ def main():
 
     # do plots
     if args.do_plots:
+        episodes = np.arange(agent.n_episodes)
         agent.episodes = np.arange(agent.n_episodes)
         agent.plot_sample_returns()
         agent.plot_total_rewards()

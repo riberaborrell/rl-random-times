@@ -26,11 +26,18 @@ def main():
     # run mc learning agent
     if not args.load:
 
+        # preallocate information for all epochs
+        agent.n_episodes = args.n_episodes_lim
+        agent.preallocate_episodes()
+
         # set number of averaged episodes 
-        agent.n_avg_episodes = 100
+        agent.n_avg_episodes = args.n_avg_episodes
+
+        # set epsilons
+        agent.set_glie_epsilons()
 
         # sarsa algorithm
-        agent.sarsa(args.n_episodes_lim, args.n_steps_lim, args.lr)
+        agent.sarsa(args.n_steps_lim, args.alpha)
 
         # save agent
         agent.save()

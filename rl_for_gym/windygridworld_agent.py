@@ -49,18 +49,17 @@ class WindyGridworldAgent(Agent):
             action = self.env.action_space.sample()
         return action
 
-    def mc_learning(self, n_episodes_lim, n_steps_lim):
+    def save_last_tables(self):
+        self.last_n_table = self.n_table
+        self.last_q_table = self.q_table
+        self.npz_dict['last_n_table'] = self.n_table
+        self.npz_dict['last_q_table'] = self.q_table
 
-        # preallocate information for all epochs
-        self.n_episodes = n_episodes_lim
-        self.preallocate_episodes()
+    def mc_learning(self, n_steps_lim, alpha):
 
         # initialize frequency and q-values table
         self.initialize_frequency_table()
         self.initialize_q_table()
-
-        # set epsilons
-        self.set_glie_epsilons()
 
         # episodes
         for ep in np.arange(self.n_episodes):
@@ -107,8 +106,9 @@ class WindyGridworldAgent(Agent):
                 g = self.returns[k]
 
                 self.n_table[idx] += 1
+                alpha = 1 / self.n_table[idx]
                 self.q_table[idx] = self.q_table[idx] \
-                                  + (g - self.q_table[idx]) / self.n_table[idx]
+                                  + alpha * (g - self.q_table[idx])
 
             # save time steps
             self.save_episode(ep, k)
@@ -119,28 +119,17 @@ class WindyGridworldAgent(Agent):
                 print(msg)
 
 
-        # save number of episodes
-        self.n_episodes = ep + 1
-
         # update npz dict
         self.update_npz_dict_agent()
 
-        # save q_values table
-        self.npz_dict['last_n_table'] = self.n_table
-        self.npz_dict['last_q_table'] = self.q_table
+        # save frequency and q-value last tables
+        self.save_last_tables()
 
-    def sarsa(self, n_episodes_lim, n_steps_lim, alpha):
-
-        # preallocate information for all epochs
-        self.n_episodes = n_episodes_lim
-        self.preallocate_episodes()
+    def sarsa(self, n_steps_lim, alpha):
 
         # initialize frequency and q-values table
         self.initialize_frequency_table()
         self.initialize_q_table()
-
-        # set epsilons
-        self.set_glie_epsilons()
 
         # episodes
         for ep in np.arange(self.n_episodes):
@@ -197,21 +186,13 @@ class WindyGridworldAgent(Agent):
                 msg = self.log_episodes(ep)
                 print(msg)
 
-        # save number of episodes
-        self.n_episodes = ep + 1
-
         # update npz dict
         self.update_npz_dict_agent()
 
-        # save q_values table
-        self.npz_dict['last_n_table'] = self.n_table
-        self.npz_dict['last_q_table'] = self.q_table
+        # save frequency and q-value last tables
+        self.save_last_tables()
 
-    def sarsa_lambda(self, n_episodes_lim, n_steps_lim, alpha, lam):
-
-        # preallocate information for all epochs
-        self.n_episodes = n_episodes_lim
-        self.preallocate_episodes()
+    def sarsa_lambda(self, n_steps_lim, alpha, lam):
 
         # initialize frequency and q-values table
         self.initialize_frequency_table()
@@ -282,21 +263,77 @@ class WindyGridworldAgent(Agent):
                 msg = self.log_episodes(ep)
                 print(msg)
 
-        # save number of episodes
-        self.n_episodes = ep + 1
+        # update npz dict
+        self.update_npz_dict_agent()
+
+        # save frequency and q-value last tables
+        self.save_last_tables()
+
+    def q_learning(self, n_steps_lim, alpha):
+
+        # initialize frequency and q-values table
+        self.initialize_frequency_table()
+        self.initialize_q_table()
+
+        # episodes
+        for ep in np.arange(self.n_episodes):
+
+            # reset environment
+            state = self.env.reset()
+
+            # reset trajectory
+            self.reset_trajectory()
+
+            # terminal state flag
+            complete = False
+
+            # sample episode
+            for k in np.arange(n_steps_lim):
+
+                # interrupt if we are in a terminal state
+                if complete:
+                    break
+
+                # choose action following epsilon greedy action
+                action = self.get_epsilon_greedy_action(ep, state)
+
+                # step dynamics forward
+                new_state, r, complete, _ = self.env.step(action)
+
+                idx = tuple(state) + (action,)
+                max_q_value = np.max(self.q_table[new_state])
+
+                # update frequency table
+                self.n_table[idx] += 1
+
+                # update q-values table
+                self.q_table[idx] = self.q_table[idx] \
+                        + alpha * (r + self.gamma * max_q_value - self.q_table[idx])
+
+                # save reward
+                self.save_reward(r)
+
+                # update state and action
+                state = new_state
+
+            # compute return
+            self.compute_discounted_rewards()
+            self.compute_returns()
+
+            # save time steps
+            self.save_episode(ep, k)
+
+            # logs
+            if self.logs:
+                msg = self.log_episodes(ep)
+                print(msg)
 
         # update npz dict
         self.update_npz_dict_agent()
 
-        # save q_values table
-        self.npz_dict['last_n_table'] = self.n_table
-        self.npz_dict['last_q_table'] = self.q_table
+        # save frequency and q-value last tables
+        self.save_last_tables()
 
-    def compute_frequency_table(self):
-        self.frequency_table = np.sum(self.last_n_table, axis=2)
-
-    def compute_policy_table(self):
-        self.policy_table = np.argmax(self.last_q_table, axis=2)
 
     def plot_sample_returns(self):
         y = np.vstack((self.sample_returns, self.avg_sample_returns))
@@ -314,20 +351,21 @@ class WindyGridworldAgent(Agent):
 
     def plot_epsilons(self):
         fig = MyFigure(self.dir_path, 'epsilons')
+        fig.set_plot_type('semilogy')
         fig.plot_one_line(self.episodes, self.epsilons)
 
     def plot_frequency(self):
-        self.compute_frequency_table()
+        frequency_table = np.sum(self.last_n_table, axis=2)
         fig = MyFigure(self.dir_path, 'frequency_table')
-        fig.axes[0].imshow(self.frequency_table, origin='lower')
+        fig.axes[0].imshow(frequency_table, origin='lower')
         fig.savefig(fig.file_path)
 
     def plot_policy(self):
+        policy_table = np.argmax(self.last_q_table, axis=2)
 
         # plot policy table
-        self.compute_policy_table()
         fig = MyFigure(self.dir_path, 'policy_table')
-        fig.axes[0].imshow(self.policy_table, origin='lower')
+        fig.axes[0].imshow(policy_table, origin='lower')
         fig.savefig(fig.file_path)
 
         # plot policy vector field
@@ -338,8 +376,8 @@ class WindyGridworldAgent(Agent):
         V = np.empty(Y.shape)
         for i in x:
             for j in y:
-                U[i, j] = self.env.moves[self.policy_table[i, j]][0]
-                V[i, j] = self.env.moves[self.policy_table[i, j]][1]
+                U[i, j] = self.env.moves[policy_table[i, j]][0]
+                V[i, j] = self.env.moves[policy_table[i, j]][1]
         fig = MyFigure(self.dir_path, 'policy_vector_field')
         fig.axes[0].quiver(X, Y, U, V)
         fig.savefig(fig.file_path)
