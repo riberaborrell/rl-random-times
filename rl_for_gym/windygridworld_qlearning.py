@@ -36,7 +36,7 @@ def main():
         # set epsilons
         agent.set_glie_epsilons()
 
-        # sarsa algorithm
+        # q-learning algorithm
         agent.q_learning(args.n_steps_lim, args.alpha)
 
         # save agent

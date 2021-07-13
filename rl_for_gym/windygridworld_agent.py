@@ -39,14 +39,17 @@ class WindyGridworldAgent(Agent):
         ), dtype=np.float64)
 
     def get_epsilon_greedy_action(self, ep, state):
-        # pick greedy action (exploitation)
+        # get epsilon
         epsilon = self.epsilons[ep]
+
+        # pick greedy action (exploitation)
         if np.random.rand() > epsilon:
             action = np.argmax(self.q_table[state])
 
         # pick random action (exploration)
         else:
             action = self.env.action_space.sample()
+
         return action
 
     def save_last_tables(self):
@@ -308,7 +311,7 @@ class WindyGridworldAgent(Agent):
 
                 # update q-values table
                 self.q_table[idx] = self.q_table[idx] \
-                        + alpha * (r + self.gamma * max_q_value - self.q_table[idx])
+                                  + alpha * (r + self.gamma * max_q_value - self.q_table[idx])
 
                 # save reward
                 self.save_reward(r)
