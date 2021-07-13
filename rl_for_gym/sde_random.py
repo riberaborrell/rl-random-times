@@ -2,9 +2,9 @@ from base_parser import get_base_parser
 from sde_agent import SdeAgent
 from figures import MyFigure
 
-import numpy as np
 import gym
 import gym_sde
+import numpy as np
 
 
 def get_parser():
@@ -17,6 +17,7 @@ def main():
 
     # create gym env 
     env = gym.make('sde-v0')
+    env.random_x_init = True
 
     # initialize Agent
     agent = SdeAgent(env, args.gamma)
@@ -29,10 +30,14 @@ def main():
     #    agent.env.seed(args.seed)
 
     # preallocate information for all epochs
+    agent.n_episodes = args.n_episodes_lim
     agent.preallocate_episodes()
 
+    # set number of averaged episodes 
+    agent.n_avg_episodes = args.n_avg_episodes
+
     # different trajectories
-    for ep in np.arange(args.n_episodes_lim):
+    for ep in np.arange(agent.n_episodes):
 
         # reset environment
         obs = agent.env.reset()
@@ -70,28 +75,17 @@ def main():
         agent.compute_returns()
 
         # save time steps
-        agent.save_episode(time_steps=k)
+        agent.save_episode(ep, k)
 
         if args.do_report and ep % 1 == 0:
             msg = agent.log_episodes(ep)
             print(msg)
 
-    # save number of episodes
-    agent.n_episodes = ep + 1
-
+    # do plots
     if args.do_plots:
-
-        # get episodes array
-        episodes = np.arange(agent.n_episodes)
-
-        # plot total rewards
-        fig = MyFigure(agent.dir_path, 'total_rewards')
-        fig.plot_one_line(episodes, agent.total_rewards)
-
-        # plot time steps
-        fig = MyFigure(agent.dir_path, 'time_steps')
-        fig.plot_one_line(episodes, agent.time_steps)
-
+        agent.episodes = np.arange(agent.n_episodes)
+        agent.plot_total_rewards()
+        agent.plot_time_steps()
 
 if __name__ == '__main__':
     main()

@@ -1,11 +1,11 @@
-from agent import QLearningAgent
+from agent import Agent
 from gym.spaces.box import Box
 
 from figures import MyFigure
 
 import numpy as np
 
-class SdeAgent(QLearningAgent):
+class SdeAgent(Agent):
     '''
     '''
 
@@ -22,7 +22,7 @@ class SdeAgent(QLearningAgent):
     def discretize_state_space(self):
         ''' discretize state space
         '''
-        self.h_state = 0.01
+        self.h_state = 0.1
         state_space_h = np.mgrid[[
             slice(self.state_space.low[0], self.state_space.high[0] + self.h_state, self.h_state),
         ]]
@@ -50,15 +50,256 @@ class SdeAgent(QLearningAgent):
         idx_action = np.argmin(np.abs(self.action_space_h[:, 0] - action))
         return idx_action
 
-    def plot_q_table_control(self):
+    def reset_trajectory(self):
+        self.states = np.empty(0)
+        self.actions = np.empty(0)
+        self.rewards = np.empty(0)
+
+    def save_history(self, state, action, r):
+        self.states = np.append(self.states, state)
+        self.actions = np.append(self.actions, action)
+        self.rewards = np.append(self.rewards, r)
+
+    def preallocate_tables(self):
+        self.q_tables = np.empty(
+            (0,) + self.state_space_h.shape[:-1] + action_space_h.shape[:-1]
+        )
+
+    def initialize_q_table(self):
+        self.q_table = np.zeros(
+            self.state_space_h.shape[:-1] + self.action_space_h.shape[:-1]
+        )
+
+    def initialize_frequency_table(self):
+        self.n_table = np.zeros(
+            self.state_space_h.shape[:-1] + self.action_space_h.shape[:-1]
+        )
+
+    def save_q_table(self):
+        self.last_q_table = self.q_table
+        self.npz_dict['last_q_table'] = self.q_table
+
+    def get_epsilon_greedy_action(self, ep, idx_state):
+        # get epsilon
+        epsilon = self.epsilons[ep]
+
+        # pick greedy action (exploitation)
+        if np.random.rand() > epsilon:
+            idx_action = np.argmax(self.q_table[idx_state])
+            action = self.action_space_h[idx_action]
+
+        # pick random action (exploration)
+        else:
+            action = self.env.action_space.sample()
+            idx_action = self.get_action_idx(action)
+
+        return idx_action, action
+
+    def mc_learning(self, n_steps_lim, alpha):
+
+        # set state space and discretize
+        self.set_state_space()
+        self.discretize_state_space()
+        self.discretize_action_space()
+
+        # initialize frequency and q-values table
+        self.initialize_frequency_table()
+        self.initialize_q_table()
+
+        # for each episode
+        for ep in np.arange(self.n_episodes):
+
+            # reset environment
+            _ = self.env.reset()
+            state = self.env.state
+
+            # reset trajectory
+            self.reset_trajectory()
+
+            # terminal state flag
+            complete = False
+
+            # sample episode
+            for k in np.arange(n_steps_lim):
+
+                # interrupt if we are in a terminal state
+                if complete:
+                    break
+
+                # get index of the state
+                idx_state = self.get_state_idx(state)
+
+                # choose action following epsilon greedy policy
+                idx_action, action = self.get_epsilon_greedy_action(ep, idx_state)
+
+                # step dynamics forward
+                new_obs, r, complete, _ = self.env.step(action)
+                new_state = self.env.state
+
+                # save state, actions and reward
+                self.save_history(state, action, r)
+
+                # update state
+                state = new_state
+
+            # compute return
+            self.compute_discounted_rewards()
+            self.compute_returns()
+
+            # update q values
+            n_steps_trajectory = self.states.shape[0]
+            for k in np.arange(n_steps_trajectory):
+
+                # state and its index at step k
+                state = self.states[k]
+                idx_state = self.get_state_idx(state)
+
+                # action and its index at step k
+                action = self.actions[k]
+                idx_action = self.get_action_idx(state)
+
+                # state-action index
+                idx = (idx_state, idx_action)
+                g = self.returns[k]
+
+                # update frequency and q table
+                self.n_table[idx] += 1
+                #alpha = 1 / self.n_table[idx]
+                self.q_table[idx] = self.q_table[idx] \
+                                  + alpha * (g - self.q_table[idx])
+
+            # save time steps
+            self.save_episode(ep, k)
+
+            # logs
+            if self.logs:
+                msg = self.log_episodes(ep)
+                print(msg)
+
+
+        # update npz dict
+        self.update_npz_dict_agent()
+
+        # save frequency and q-value last tables
+        self.save_q_table()
+
+    def q_learning(self, n_steps_lim, alpha):
+
+        # set state space and discretize
+        self.set_state_space()
+        self.discretize_state_space()
+        self.discretize_action_space()
+
+        # initialize q-values table
+        self.initialize_q_table()
+
+        # for each episode
+        for ep in np.arange(self.n_episodes):
+
+            # reset environment
+            _ = self.env.reset()
+            state = self.env.state
+
+            # reset trajectory
+            self.reset_rewards()
+
+            # terminal state flag
+            complete = False
+
+            # sample episode
+            for k in np.arange(n_steps_lim):
+
+                # interrupt if we are in a terminal state
+                if complete:
+                    break
+
+                # get index of the state
+                idx_state = self.get_state_idx(state)
+
+                # choose action following epsilon greedy action
+                idx_action, action = self.get_epsilon_greedy_action(ep, idx_state)
+
+                # step dynamics forward
+                new_obs, r, complete, _ = self.env.step(action)
+                new_state = self.env.state
+
+                # get idx new state
+                idx_new_state = self.get_state_idx(new_state)
+
+                # get idx state-action pair
+                idx = (idx_state, idx_action,)
+
+                # update q values
+                self.q_table[idx] += alpha * (
+                      r \
+                    + self.gamma * np.max(self.q_table[(idx_new_state, slice(None))]) \
+                    - self.q_table[idx]
+                )
+
+                # save reward
+                self.save_reward(r)
+
+                # update state
+                state = new_state
+
+            # save q-value
+            #agent.q_values = np.concatenate((agent.q_values, q_values[np.newaxis, :]), axis=0)
+
+            # compute return
+            self.compute_discounted_rewards()
+            self.compute_returns()
+
+            # save time steps
+            self.save_episode(ep, k)
+
+            # logs
+            if self.logs:
+                msg = self.log_episodes(ep)
+                print(msg)
+
+        # update npz dict
+        self.update_npz_dict_agent()
+
+        # save frequency and q-value last tables
+        self.save_q_table()
+
+
+    def plot_total_rewards(self):
+        fig = MyFigure(self.dir_path, 'total_rewards')
+        y = np.vstack((self.total_rewards, self.avg_total_rewards))
+        fig.plot_multiple_lines(self.episodes, y)
+
+    def plot_time_steps(self):
+        fig = MyFigure(self.dir_path, 'time_steps')
+        fig.plot_one_line(self.episodes, self.time_steps)
+
+    def plot_epsilons(self):
+        fig = MyFigure(self.dir_path, 'epsilons')
+        fig.set_plot_type('semilogy')
+        fig.plot_one_line(self.episodes, self.epsilons)
+
+    def plot_control(self):
         x = self.state_space_h[:, 0]
         control = np.empty_like(x)
 
         for idx, x_k in enumerate(x):
-            idx_action = np.argmax(self.last_q_values[idx])
+            idx_action = np.argmax(self.last_q_table[idx])
             control[idx] = self.action_space_h[idx_action]
 
-        # plot q-table control
         fig = MyFigure(self.dir_path, 'control')
         fig.plot_one_line(x, control)
 
+    def plot_sliced_q_tables(self):
+        for idx, ep in enumerate(self.sliced_episodes):
+            q_values = self.sliced_q_values[idx]
+            q_values = np.moveaxis(q_values, 0, -1)
+            plt.imshow(
+                q_values,
+                cmap=cm.RdYlGn,
+                origin='lower',
+                vmin=q_values.min(),
+                vmax=q_values.max(),
+                extent=[-3, 3, 0, 5],
+            )
+            plt.colorbar()
+            plt.show()

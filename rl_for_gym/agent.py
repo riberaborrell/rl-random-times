@@ -93,6 +93,12 @@ class Agent:
     def set_glie_epsilons(self):
         self.epsilons = np.array([1 / (ep + 1) for ep in np.arange(self.n_episodes)])
 
+    def set_exp_decay_epsilons(self, eps_min, eps_max, eps_decay):
+        self.epsilons = np.array([
+            eps_min + (eps_max - eps_min) * np.exp( - eps_decay * ep)
+            for ep in np.arange(self.n_episodes)
+        ])
+
     def update_epsilon_exp_decay(self, episode):
         return self.eps_min + (self.eps_max - self.eps_min) * np.exp( - self.eps_decay * episode)
 
@@ -186,13 +192,6 @@ class Agent:
         self.npz_dict['avg_sample_returns'] = self.avg_sample_returns
         self.npz_dict['time_steps'] = self.time_steps
         self.npz_dict['ct'] = self.ct
-
-    def preallocate_tables(self, state_space_h, action_space_h):
-        self.state_space_h = state_space_h
-        self.action_space_h = action_space_h
-
-        self.q_tables = np.empty((0,) + state_space_h.shape[:-1] + action_space_h.shape[:-1])
-        #self.q_tables = np.zeros(state_space_h.shape[:-1] + action_space_h.shape[:-1])
 
     def update_npz_dict_last_q_table(self):
         self.npz_dict['last_q_table'] = self.q_tables[-1]
