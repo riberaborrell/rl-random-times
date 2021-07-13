@@ -1,5 +1,5 @@
 from base_parser import get_base_parser
-from agent import Agent
+from blackjack_agent import BlackjackAgent
 from figures import MyFigure
 
 import numpy as np
@@ -17,7 +17,7 @@ def main():
     env = gym.make('Blackjack-v0')
 
     # initialize Agent
-    agent = Agent(env, args.gamma)
+    agent = BlackjackAgent(env, args.gamma)
 
     # set dir path
     agent.set_dir_path('random')
@@ -27,10 +27,10 @@ def main():
     agent.preallocate_episodes()
 
     # set number of averaged episodes 
-    agent.n_avg_episodes = 100
+    agent.n_avg_episodes = args.n_avg_episodes
 
     # different trajectories
-    for ep in np.arange(args.n_episodes_lim):
+    for ep in np.arange(agent.n_episodes):
 
         # reset environment
         agent.env.reset()
@@ -71,28 +71,13 @@ def main():
             msg = agent.log_episodes(ep)
             print(msg)
 
-    # save number of episodes
-    agent.n_episodes = ep + 1
-
+    # do plots
     if args.do_plots:
-
-        # episodes array
         episodes = np.arange(agent.n_episodes)
-
-        # plot sample returns
-        fig = MyFigure(agent.dir_path, 'sample_returns')
-        y = np.vstack((agent.sample_returns, agent.avg_sample_returns))
-        fig.plot_multiple_lines(episodes, y)
-
-        # plot total rewards
-        fig = MyFigure(agent.dir_path, 'total_rewards')
-        y = np.vstack((agent.total_rewards, agent.avg_total_rewards))
-        fig.plot_multiple_lines(episodes, y)
-
-        # plot time steps
-        fig = MyFigure(agent.dir_path, 'time_steps')
-        fig.plot_one_line(episodes, agent.time_steps)
-
+        agent.episodes = np.arange(agent.n_episodes)
+        agent.plot_sample_returns()
+        agent.plot_total_rewards()
+        agent.plot_time_steps()
 
 if __name__ == '__main__':
     main()

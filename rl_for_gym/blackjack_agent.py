@@ -1,4 +1,5 @@
 from agent import Agent
+from figures import MyFigure
 
 import numpy as np
 
@@ -24,14 +25,10 @@ class BlackjackAgent(Agent):
             state = observation[:2] + (0,)
         return state
 
-    def mc_learning(self, n_episodes_lim, n_steps_lim, lr, do_render=False):
+    def mc_learning(self, n_steps_lim, alpha):
 
         # preallocate information for all epochs
-        self.n_episodes = n_episodes_lim
         self.preallocate_episodes()
-
-        # set epsilons
-        self.set_glie_epsilons()
 
         # initialize n and q-values tables
         n_table = np.zeros((
@@ -68,10 +65,6 @@ class BlackjackAgent(Agent):
                 if complete:
                     break
 
-                # render observations
-                if do_render:
-                    self.env.render()
-
                 # pick greedy action (exploitation)
                 epsilon = self.epsilons[ep]
                 if np.random.rand() > epsilon:
@@ -99,15 +92,16 @@ class BlackjackAgent(Agent):
             n_steps_trajectory = self.states.shape[0]
             for k in np.arange(n_steps_trajectory):
 
+                # state-action index
                 state = self.states[k]
                 action = self.actions[k]
-                state_action_idx = tuple(state) + (action,)
+                idx = tuple(state) + (action,)
                 g = self.returns[k]
 
-                n_table[state_action_idx] += 1
-                q_table[state_action_idx] = q_table[state_action_idx] \
-                                          + (g - q_table[state_action_idx]) / n_table[state_action_idx]
-
+                n_table[idx] += 1
+                #alpha = 1 / n_table[idx]
+                q_table[idx] = q_table[idx] \
+                             + alpha * (g - q_table[idx])
 
             # save time steps
             self.save_episode(ep, k)
@@ -125,37 +119,54 @@ class BlackjackAgent(Agent):
         self.update_npz_dict_agent()
 
         # save q_values table
+        self.last_q_table = q_table
+        self.last_n_table = n_table
         self.npz_dict['last_q_table'] = q_table
         self.npz_dict['last_n_table'] = n_table
 
-    def compute_stick_hit_tables(self):
-        self.stick_hit_table_ua = np.zeros((
-            self.env.observation_space[0].n,
-            self.env.observation_space[1].n,
-        ), dtype=bool)
 
-        self.stick_hit_table_nua = np.zeros((
-            self.env.observation_space[0].n,
-            self.env.observation_space[1].n,
-        ), dtype=bool)
+    def plot_sample_returns(self):
+        y = np.vstack((self.sample_returns, self.avg_sample_returns))
+        fig = MyFigure(self.dir_path, 'sample_returns')
+        fig.plot_multiple_lines(self.episodes, y)
 
-        self.frequency_ua = np.zeros((
-            self.env.observation_space[0].n,
-            self.env.observation_space[1].n,
-        ), dtype=np.int32)
+    def plot_total_rewards(self):
+        fig = MyFigure(self.dir_path, 'total_rewards')
+        y = np.vstack((self.total_rewards, self.avg_total_rewards))
+        fig.plot_multiple_lines(self.episodes, y)
 
-        self.frequency_nua = np.zeros((
-            self.env.observation_space[0].n,
-            self.env.observation_space[1].n,
-        ), dtype=np.int32)
+    def plot_time_steps(self):
+        fig = MyFigure(self.dir_path, 'time_steps')
+        fig.plot_one_line(self.episodes, self.time_steps)
 
-        for i in range(self.env.observation_space[0].n):
-            for j in range(self.env.observation_space[1].n):
+    def plot_epsilons(self):
+        fig = MyFigure(self.dir_path, 'epsilons')
+        fig.set_plot_type('semilogy')
+        fig.plot_one_line(self.episodes, self.epsilons)
 
-                # get action index of the highest action-value pair
-                self.stick_hit_table_nua[i, j] = np.argmax(self.last_q_table[i, j, 0, :])
-                self.stick_hit_table_ua[i, j] = np.argmax(self.last_q_table[i, j, 1, :])
+    def plot_frequency(self):
+        frequency_ua = np.sum(self.last_n_table[:, :, 1, :], axis=2)
+        frequency_nua = np.sum(self.last_n_table[:, :, 0, :], axis=2)
 
-                # count how many time a state tuple has been visit
-                self.frequency_nua[i, j] = np.sum(self.last_n_table[i, j, 0, :])
-                self.frequency_ua[i, j] = np.sum(self.last_n_table[i, j, 1, :])
+        fig = MyFigure(self.dir_path, 'frequency_usable_ace')
+        fig.axes[0].imshow(frequency_ua, origin='lower')
+        fig.savefig(fig.file_path)
+
+        fig = MyFigure(self.dir_path, 'frequency_not_usable_ace')
+        fig.axes[0].imshow(frequency_nua, origin='lower')
+        fig.savefig(fig.file_path)
+
+    def plot_policy(self):
+        stick_hit_table_ua = np.argmax(self.last_q_table[:, :, 1, :], axis=2)
+        stick_hit_table_nua = np.argmax(self.last_q_table[:, :, 0, :], axis=2)
+
+        fig = MyFigure(self.dir_path, 'policy_usable_ace')
+        fig.axes[0].imshow(stick_hit_table_ua, origin='lower')
+        fig.savefig(fig.file_path)
+
+        fig = MyFigure(self.dir_path, 'policy_not_usable_ace')
+        fig.axes[0].imshow(stick_hit_table_nua, origin='lower')
+        fig.savefig(fig.file_path)
+
+
+

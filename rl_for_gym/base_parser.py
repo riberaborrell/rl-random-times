@@ -25,8 +25,8 @@ def get_base_parser():
         help='discount factor (default: 0.99)',
     )
     parser.add_argument(
-        '--lr',
-        dest='lr',
+        '--alpha',
+        dest='alpha',
         type=float,
         default=0.01,
         help='Set learning rate. Default: 0.01',
@@ -79,6 +79,13 @@ def get_base_parser():
         type=int,
         default=1000,
         help='Set number of episodes. Default: 1000',
+    )
+    parser.add_argument(
+        '--n-avg-episodes',
+        dest='n_avg_episodes',
+        type=int,
+        default=100,
+        help='Set number last episodes to averaged the statistics. Default: 100',
     )
     parser.add_argument(
         '--step-sliced-episodes',
