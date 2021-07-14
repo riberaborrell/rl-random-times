@@ -41,7 +41,7 @@ def main():
         agent.q_learning(args.n_steps_lim, args.alpha)
 
         # save agent
-        #agent.step_sliced_episodes = args.step_sliced_episodes
+        agent.save()
 
     # load already run agent
     else:
@@ -59,6 +59,7 @@ def main():
         agent.plot_total_rewards()
         agent.plot_time_steps()
         agent.plot_epsilons()
+        agent.plot_frequency_table()
         agent.plot_control()
         #agent.plot_sliced_q_tables()
 

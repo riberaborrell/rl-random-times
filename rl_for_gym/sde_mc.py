@@ -45,7 +45,7 @@ def main():
         agent.mc_learning(args.n_steps_lim, args.alpha)
 
         # save agent
-        #agent.step_sliced_episodes = args.step_sliced_episodes
+        agent.save()
 
     # load already run agent
     else:

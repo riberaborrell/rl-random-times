@@ -22,7 +22,7 @@ class SdeAgent(Agent):
     def discretize_state_space(self):
         ''' discretize state space
         '''
-        self.h_state = 0.1
+        self.h_state = 0.5
         state_space_h = np.mgrid[[
             slice(self.state_space.low[0], self.state_space.high[0] + self.h_state, self.h_state),
         ]]
@@ -32,7 +32,7 @@ class SdeAgent(Agent):
         ''' discretize action space
         '''
         action_space = self.env.action_space
-        self.h_action = 0.1
+        self.h_action = 0.5
         action_space_h = np.mgrid[[
             slice(action_space.low[0], action_space.high[0] + self.h_action, self.h_action)
         ]]
@@ -74,6 +74,10 @@ class SdeAgent(Agent):
         self.n_table = np.zeros(
             self.state_space_h.shape[:-1] + self.action_space_h.shape[:-1]
         )
+
+    def save_frequency_table(self):
+        self.last_n_table = self.n_table
+        self.npz_dict['last_n_table'] = self.n_table
 
     def save_q_table(self):
         self.last_q_table = self.q_table
@@ -191,6 +195,7 @@ class SdeAgent(Agent):
         self.discretize_action_space()
 
         # initialize q-values table
+        self.initialize_frequency_table()
         self.initialize_q_table()
 
         # for each episode
@@ -230,6 +235,7 @@ class SdeAgent(Agent):
                 idx = (idx_state, idx_action,)
 
                 # update q values
+                self.n_table[idx] += 1
                 self.q_table[idx] += alpha * (
                       r \
                     + self.gamma * np.max(self.q_table[(idx_new_state, slice(None))]) \
@@ -261,12 +267,14 @@ class SdeAgent(Agent):
         self.update_npz_dict_agent()
 
         # save frequency and q-value last tables
+        self.save_frequency_table()
         self.save_q_table()
 
 
     def plot_total_rewards(self):
         fig = MyFigure(self.dir_path, 'total_rewards')
         y = np.vstack((self.total_rewards, self.avg_total_rewards))
+        fig.set_ylim(-100, 0)
         fig.plot_multiple_lines(self.episodes, y)
 
     def plot_time_steps(self):
@@ -277,6 +285,11 @@ class SdeAgent(Agent):
         fig = MyFigure(self.dir_path, 'epsilons')
         fig.set_plot_type('semilogy')
         fig.plot_one_line(self.episodes, self.epsilons)
+
+    def plot_frequency_table(self):
+        fig = MyFigure(self.dir_path, 'frequency_table')
+        fig.axes[0].imshow(self.last_n_table, origin='lower')
+        fig.savefig(fig.file_path)
 
     def plot_control(self):
         x = self.state_space_h[:, 0]
