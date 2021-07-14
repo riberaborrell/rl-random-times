@@ -63,12 +63,12 @@ class MyFigure(Figure):
         ax.set_ylabel(label)
 
     def set_xlim(self, xmin, xmax):
-        self.xmin = xmin
-        self.xmax = xmax
+        ax = self.axes[0]
+        ax.set_xlim(xmin, xmax)
 
     def set_ylim(self, ymin, ymax):
-        self.ymin = ymin
-        self.ymax = ymax
+        ax = self.axes[0]
+        ax.set_ylim(ymin, ymax)
 
     def set_plot_type(self, plot_type):
         assert plot_type in PLOT_TYPES, ''
