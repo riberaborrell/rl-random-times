@@ -90,6 +90,9 @@ class Agent:
         self.eps_decay = eps_decay
         self.epsilons = [eps_init]
 
+    def set_constant_epsilons(self, eps_init):
+        self.epsilons = eps_init * np.ones(self.n_episodes)
+
     def set_glie_epsilons(self):
         self.epsilons = np.array([1 / (ep + 1) for ep in np.arange(self.n_episodes)])
 
