@@ -2,6 +2,7 @@ from agent import Agent
 from gym.spaces.box import Box
 
 from figures import MyFigure
+from matplotlib import cm
 
 import numpy as np
 
@@ -66,7 +67,7 @@ class SdeAgent(Agent):
         )
 
     def initialize_q_table(self):
-        self.q_table = np.zeros(
+        self.q_table = np.random.rand(*
             self.state_space_h.shape[:-1] + self.action_space_h.shape[:-1]
         )
 
@@ -185,6 +186,7 @@ class SdeAgent(Agent):
         self.update_npz_dict_agent()
 
         # save frequency and q-value last tables
+        self.save_frequency_table()
         self.save_q_table()
 
     def q_learning(self, n_steps_lim, alpha):
@@ -287,8 +289,52 @@ class SdeAgent(Agent):
         fig.plot_one_line(self.episodes, self.epsilons)
 
     def plot_frequency_table(self):
+        # set extent bounds
+        left = self.state_space_h[0, 0]
+        right = self.state_space_h[-1, 0]
+        bottom = self.action_space_h[0, 0]
+        top = self.action_space_h[-1, 0]
+
         fig = MyFigure(self.dir_path, 'frequency_table')
-        fig.axes[0].imshow(self.last_n_table, origin='lower')
+        im = fig.axes[0].imshow(
+            self.last_n_table.T,
+            origin='lower',
+            extent=(left, right, bottom, top),
+            cmap=cm.coolwarm,
+        )
+
+        # add space for colour bar
+        fig.subplots_adjust(right=0.85)
+        cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
+        fig.colorbar(im, cax=cbar_ax)
+
+        # save figure
+        fig.savefig(fig.file_path)
+
+    def plot_q_table(self):
+
+        # set extent bounds
+        left = self.state_space_h[0, 0]
+        right = self.state_space_h[-1, 0]
+        bottom = self.action_space_h[0, 0]
+        top = self.action_space_h[-1, 0]
+
+        # see https://matplotlib.org/stable/tutorials/intermediate/imshow_extent.html
+
+        fig = MyFigure(self.dir_path, 'q_table')
+        im = fig.axes[0].imshow(
+            self.last_q_table.T,
+            origin='lower',
+            extent=(left, right, bottom, top),
+            cmap=cm.viridis,
+        )
+
+        # add space for colour bar
+        fig.subplots_adjust(right=0.85)
+        cbar_ax = fig.add_axes([0.88, 0.15, 0.04, 0.7])
+        fig.colorbar(im, cax=cbar_ax)
+
+        # save figure
         fig.savefig(fig.file_path)
 
     def plot_control(self):
