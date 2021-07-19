@@ -39,3 +39,42 @@ def get_agent_dir_path(env, agent):
     make_dir_path(dir_path)
 
     return dir_path
+
+def get_mc_dir_path(agent_dir_path, eps_type, n_episodes):
+    dir_path = os.path.join(
+        agent_dir_path,
+        'eps_{}'.format(eps_type),
+        'N_{:d}'.format(n_episodes),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
+def get_sarsa_lambda_dir_path(agent_dir_path, eps_type, alpha, lam, n_episodes):
+    dir_path = os.path.join(
+        agent_dir_path,
+        'eps_{}'.format(eps_type),
+        'alpha_{:0.3f}'.format(alpha),
+        'lambda_{:0.1f}'.format(lam),
+        'N_{:d}'.format(n_episodes),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
+def get_qlearning_dir_path(agent_dir_path, eps_type, alpha, n_episodes):
+    dir_path = os.path.join(
+        agent_dir_path,
+        'eps_{}'.format(eps_type),
+        'alpha_{:0.3f}'.format(alpha),
+        'N_{:d}'.format(n_episodes),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path

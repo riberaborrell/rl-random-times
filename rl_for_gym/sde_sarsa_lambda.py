@@ -1,14 +1,11 @@
 from sde_agent import SdeAgent
 from base_parser import get_base_parser
-from figures import MyFigure
-from utils_path import get_mc_dir_path
+from utils_path import get_sarsa_lambda_dir_path
 
 import gym
 import gym_sde
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 
 def get_parser():
     parser = get_base_parser()
@@ -20,16 +17,16 @@ def main():
 
     # create gym env 
     env = gym.make('sde-v0')
-    env.random_x_init = True
 
     # initialize Agent
     agent = SdeAgent(env, args.gamma, logs=args.do_report)
 
     # get dir path
-    agent.set_dir_path('mc-learning')
-    agent.dir_path = get_mc_dir_path(agent.dir_path, 'const', args.n_episodes_lim)
+    agent.set_dir_path('sarsa-lambda')
+    agent.dir_path = get_sarsa_lambda_dir_path(agent.dir_path, 'glie', args.alpha,
+                                               args.lam, args.n_episodes_lim)
 
-    # run mc-learning agent
+    # run sarsa lambda agent
     if not args.load:
 
         # preallocate information for all epochs
@@ -40,12 +37,11 @@ def main():
         agent.n_avg_episodes = args.n_avg_episodes
 
         # set epsilons
-        agent.set_constant_epsilons(args.eps_init)
-        #agent.set_glie_epsilons()
+        agent.set_glie_epsilons()
         #agent.set_epsilon_parameters(args.eps_init, args.eps_min, args.eps_max, args.eps_decay)
 
         # q-learning algorithm
-        mc_learning(agent, args.n_steps_lim, args.alpha)
+        sarsa_lambda(agent, args.n_steps_lim, args.alpha, args.lam)
 
         # save agent
         agent.save()
@@ -80,26 +76,29 @@ def main():
             msg = agent.log_episodes(ep)
             print(msg)
 
-def mc_learning(agent, n_steps_lim, alpha):
+def sarsa_lambda(agent, n_steps_lim, alpha, lam):
 
     # set state space and discretize
     agent.set_state_space()
     agent.discretize_state_space()
     agent.discretize_action_space()
 
-    # initialize frequency and q-values table
+    # initialize q-values table
     agent.initialize_frequency_table()
     agent.initialize_q_table()
+    agent.initialize_eligibility_traces()
 
     # for each episode
     for ep in np.arange(agent.n_episodes):
 
-        # reset environment
+        # reset environment and choose action
         _ = agent.env.reset()
         state = agent.env.state
+        idx_state = agent.get_state_idx(state)
+        idx_action, action = agent.get_epsilon_greedy_action(ep, idx_state)
 
-        # reset trajectory
-        agent.reset_trajectory()
+        # reset rewards
+        agent.reset_rewards()
 
         # terminal state flag
         complete = False
@@ -111,47 +110,42 @@ def mc_learning(agent, n_steps_lim, alpha):
             if complete:
                 break
 
-            # get index of the state
-            idx_state = agent.get_state_idx(state)
-
-            # choose action following epsilon greedy policy
-            idx_action, action = agent.get_epsilon_greedy_action(ep, idx_state)
-
             # step dynamics forward
             new_obs, r, complete, _ = agent.env.step(action)
             new_state = agent.env.state
+            idx_new_state = agent.get_state_idx(new_state)
 
-            # save state, actions and reward
-            agent.save_history(state, action, r)
+            # get new action
+            idx_new_action, new_action = agent.get_epsilon_greedy_action(ep, idx_new_state)
 
-            # update state
+
+            # get idx state-action pair
+            idx = (idx_state, idx_action,)
+            idx_new = (idx_new_state, idx_new_action,)
+
+            # update frequency table
+            agent.n_table[idx] += 1
+
+            # compute temporal difference error
+            td_error = r + agent.gamma * agent.q_table[idx_new] - agent.q_table[idx]
+
+            # update eligibility traces table
+            agent.e_table[idx] += 1
+
+            # update the whole q-value and eligibility traces tables
+            agent.q_table = agent.q_table + alpha * td_error * agent.e_table
+            agent.e_table = agent.e_table * agent.gamma * lam
+
+            # save reward
+            agent.save_reward(r)
+
+            # update state and action
             state = new_state
+            action = new_action
 
         # compute return
         agent.compute_discounted_rewards()
         agent.compute_returns()
-
-        # update q values
-        n_steps_trajectory = agent.states.shape[0]
-        for k in np.arange(n_steps_trajectory):
-
-            # state and its index at step k
-            state = agent.states[k]
-            idx_state = agent.get_state_idx(state)
-
-            # action and its index at step k
-            action = agent.actions[k]
-            idx_action = agent.get_action_idx(state)
-
-            # state-action index
-            idx = (idx_state, idx_action)
-            g = agent.returns[k]
-
-            # update frequency and q table
-            agent.n_table[idx] += 1
-            alpha = 1 / agent.n_table[idx]
-            agent.q_table[idx] = agent.q_table[idx] \
-                              + alpha * (g - agent.q_table[idx])
 
         # save time steps
         agent.save_episode(ep, k)
@@ -160,7 +154,6 @@ def mc_learning(agent, n_steps_lim, alpha):
         if agent.logs:
             msg = agent.log_episodes(ep)
             print(msg)
-
 
     # update npz dict
     agent.update_npz_dict_agent()

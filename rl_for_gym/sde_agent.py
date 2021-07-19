@@ -66,13 +66,18 @@ class SdeAgent(Agent):
             (0,) + self.state_space_h.shape[:-1] + action_space_h.shape[:-1]
         )
 
+    def initialize_frequency_table(self):
+        self.n_table = np.zeros(
+            self.state_space_h.shape[:-1] + self.action_space_h.shape[:-1]
+        )
+
     def initialize_q_table(self):
         self.q_table = np.random.rand(*
             self.state_space_h.shape[:-1] + self.action_space_h.shape[:-1]
         )
 
-    def initialize_frequency_table(self):
-        self.n_table = np.zeros(
+    def initialize_eligibility_traces(self):
+        self.e_table = np.zeros(
             self.state_space_h.shape[:-1] + self.action_space_h.shape[:-1]
         )
 
@@ -100,177 +105,6 @@ class SdeAgent(Agent):
 
         return idx_action, action
 
-    def mc_learning(self, n_steps_lim, alpha):
-
-        # set state space and discretize
-        self.set_state_space()
-        self.discretize_state_space()
-        self.discretize_action_space()
-
-        # initialize frequency and q-values table
-        self.initialize_frequency_table()
-        self.initialize_q_table()
-
-        # for each episode
-        for ep in np.arange(self.n_episodes):
-
-            # reset environment
-            _ = self.env.reset()
-            state = self.env.state
-
-            # reset trajectory
-            self.reset_trajectory()
-
-            # terminal state flag
-            complete = False
-
-            # sample episode
-            for k in np.arange(n_steps_lim):
-
-                # interrupt if we are in a terminal state
-                if complete:
-                    break
-
-                # get index of the state
-                idx_state = self.get_state_idx(state)
-
-                # choose action following epsilon greedy policy
-                idx_action, action = self.get_epsilon_greedy_action(ep, idx_state)
-
-                # step dynamics forward
-                new_obs, r, complete, _ = self.env.step(action)
-                new_state = self.env.state
-
-                # save state, actions and reward
-                self.save_history(state, action, r)
-
-                # update state
-                state = new_state
-
-            # compute return
-            self.compute_discounted_rewards()
-            self.compute_returns()
-
-            # update q values
-            n_steps_trajectory = self.states.shape[0]
-            for k in np.arange(n_steps_trajectory):
-
-                # state and its index at step k
-                state = self.states[k]
-                idx_state = self.get_state_idx(state)
-
-                # action and its index at step k
-                action = self.actions[k]
-                idx_action = self.get_action_idx(state)
-
-                # state-action index
-                idx = (idx_state, idx_action)
-                g = self.returns[k]
-
-                # update frequency and q table
-                self.n_table[idx] += 1
-                #alpha = 1 / self.n_table[idx]
-                self.q_table[idx] = self.q_table[idx] \
-                                  + alpha * (g - self.q_table[idx])
-
-            # save time steps
-            self.save_episode(ep, k)
-
-            # logs
-            if self.logs:
-                msg = self.log_episodes(ep)
-                print(msg)
-
-
-        # update npz dict
-        self.update_npz_dict_agent()
-
-        # save frequency and q-value last tables
-        self.save_frequency_table()
-        self.save_q_table()
-
-    def q_learning(self, n_steps_lim, alpha):
-
-        # set state space and discretize
-        self.set_state_space()
-        self.discretize_state_space()
-        self.discretize_action_space()
-
-        # initialize q-values table
-        self.initialize_frequency_table()
-        self.initialize_q_table()
-
-        # for each episode
-        for ep in np.arange(self.n_episodes):
-
-            # reset environment
-            _ = self.env.reset()
-            state = self.env.state
-
-            # reset trajectory
-            self.reset_rewards()
-
-            # terminal state flag
-            complete = False
-
-            # sample episode
-            for k in np.arange(n_steps_lim):
-
-                # interrupt if we are in a terminal state
-                if complete:
-                    break
-
-                # get index of the state
-                idx_state = self.get_state_idx(state)
-
-                # choose action following epsilon greedy action
-                idx_action, action = self.get_epsilon_greedy_action(ep, idx_state)
-
-                # step dynamics forward
-                new_obs, r, complete, _ = self.env.step(action)
-                new_state = self.env.state
-
-                # get idx new state
-                idx_new_state = self.get_state_idx(new_state)
-
-                # get idx state-action pair
-                idx = (idx_state, idx_action,)
-
-                # update q values
-                self.n_table[idx] += 1
-                self.q_table[idx] += alpha * (
-                      r \
-                    + self.gamma * np.max(self.q_table[(idx_new_state, slice(None))]) \
-                    - self.q_table[idx]
-                )
-
-                # save reward
-                self.save_reward(r)
-
-                # update state
-                state = new_state
-
-            # save q-value
-            #agent.q_values = np.concatenate((agent.q_values, q_values[np.newaxis, :]), axis=0)
-
-            # compute return
-            self.compute_discounted_rewards()
-            self.compute_returns()
-
-            # save time steps
-            self.save_episode(ep, k)
-
-            # logs
-            if self.logs:
-                msg = self.log_episodes(ep)
-                print(msg)
-
-        # update npz dict
-        self.update_npz_dict_agent()
-
-        # save frequency and q-value last tables
-        self.save_frequency_table()
-        self.save_q_table()
 
 
     def plot_total_rewards(self):
