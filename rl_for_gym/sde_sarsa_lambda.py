@@ -151,7 +151,7 @@ def sarsa_lambda(agent, n_steps_lim, alpha, lam):
         agent.save_episode(ep, k)
 
         # logs
-        if agent.logs:
+        if agent.logs and ep % 100 == 0:
             msg = agent.log_episodes(ep)
             print(msg)
 

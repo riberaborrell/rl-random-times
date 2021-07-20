@@ -40,6 +40,18 @@ def get_agent_dir_path(env, agent):
 
     return dir_path
 
+def get_mc_prediction_dir_path(agent_dir_path, gamma, n_episodes):
+    dir_path = os.path.join(
+        agent_dir_path,
+        'gamma_{:1.2f}'.format(gamma),
+        'N_{:.0e}'.format(n_episodes),
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
 def get_mc_dir_path(agent_dir_path, eps_type, n_episodes):
     dir_path = os.path.join(
         agent_dir_path,
@@ -51,7 +63,6 @@ def get_mc_dir_path(agent_dir_path, eps_type, n_episodes):
     make_dir_path(dir_path)
 
     return dir_path
-
 def get_sarsa_lambda_dir_path(agent_dir_path, eps_type, alpha, lam, n_episodes):
     dir_path = os.path.join(
         agent_dir_path,

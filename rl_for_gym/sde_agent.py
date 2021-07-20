@@ -20,20 +20,22 @@ class SdeAgent(Agent):
             dtype=np.float32,
         )
 
-    def discretize_state_space(self):
+    def discretize_state_space(self, h=0.1):
         ''' discretize state space
         '''
-        self.h_state = 0.5
+        self.h_state = h
         state_space_h = np.mgrid[[
             slice(self.state_space.low[0], self.state_space.high[0] + self.h_state, self.h_state),
         ]]
         self.state_space_h = np.moveaxis(state_space_h, 0, -1)
 
-    def discretize_action_space(self):
+    def discretize_action_space(self, h=0.1):
         ''' discretize action space
         '''
         action_space = self.env.action_space
-        self.h_action = 0.5
+        action_space.low[0] = 0
+        action_space.high[0] = 5
+        self.h_action = h
         action_space_h = np.mgrid[[
             slice(action_space.low[0], action_space.high[0] + self.h_action, self.h_action)
         ]]
@@ -51,12 +53,18 @@ class SdeAgent(Agent):
         idx_action = np.argmin(np.abs(self.action_space_h[:, 0] - action))
         return idx_action
 
+    def reset_states(self):
+        self.states = np.empty(0)
+
+    def save_state(self, state):
+        self.states = np.append(self.states, state)
+
     def reset_trajectory(self):
         self.states = np.empty(0)
         self.actions = np.empty(0)
         self.rewards = np.empty(0)
 
-    def save_history(self, state, action, r):
+    def save_trajectory(self, state, action, r):
         self.states = np.append(self.states, state)
         self.actions = np.append(self.actions, action)
         self.rewards = np.append(self.rewards, r)
@@ -65,6 +73,12 @@ class SdeAgent(Agent):
         self.q_tables = np.empty(
             (0,) + self.state_space_h.shape[:-1] + action_space_h.shape[:-1]
         )
+
+    def initialize_v_table(self):
+        self.v_table = np.random.rand(*self.state_space_h.shape[:-1])
+
+    def initialize_frequency_v_table(self):
+        self.n_table = np.zeros(self.state_space_h.shape[:-1])
 
     def initialize_frequency_table(self):
         self.n_table = np.zeros(
@@ -84,6 +98,10 @@ class SdeAgent(Agent):
     def save_frequency_table(self):
         self.last_n_table = self.n_table
         self.npz_dict['last_n_table'] = self.n_table
+
+    def save_v_table(self):
+        self.last_v_table = self.v_table
+        self.npz_dict['last_v_table'] = self.v_table
 
     def save_q_table(self):
         self.last_q_table = self.q_table
@@ -105,12 +123,10 @@ class SdeAgent(Agent):
 
         return idx_action, action
 
-
-
     def plot_total_rewards(self):
         fig = MyFigure(self.dir_path, 'total_rewards')
         y = np.vstack((self.total_rewards, self.avg_total_rewards))
-        fig.set_ylim(-100, 0)
+        #"fig.set_ylim(-100, 0)
         fig.plot_multiple_lines(self.episodes, y)
 
     def plot_time_steps(self):
@@ -181,6 +197,14 @@ class SdeAgent(Agent):
 
         fig = MyFigure(self.dir_path, 'control')
         fig.plot_one_line(x, control)
+
+    def plot_value_function(self, F_hjb):
+        x = self.state_space_h[:, 0]
+        value_f = - self.last_v_table
+        fig = MyFigure(self.dir_path, 'value_function')
+        y = np.vstack((value_f, F_hjb))
+        #fig.set_ylim(-100, 0)
+        fig.plot_multiple_lines(x, y)
 
     def plot_sliced_q_tables(self):
         for idx, ep in enumerate(self.sliced_episodes):
