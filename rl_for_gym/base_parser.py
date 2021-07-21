@@ -21,8 +21,8 @@ def get_base_parser():
         '--gamma',
         dest='gamma',
         type=float,
-        default=0.99,
-        help='discount factor (default: 0.99)',
+        default=1.,
+        help='discount factor (default: 1.)',
     )
     parser.add_argument(
         '--alpha',
@@ -70,7 +70,7 @@ def get_base_parser():
         '--n-steps-lim',
         dest='n_steps_lim',
         type=int,
-        default=1000,
+        default=10**6,
         help='Set number of maximum steps for an episode. Default: 1000',
     )
     parser.add_argument(

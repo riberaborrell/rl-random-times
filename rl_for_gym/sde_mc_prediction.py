@@ -37,9 +37,9 @@ def main():
     agent = SdeAgent(env, args.gamma, logs=args.do_report)
 
     # get dir path
-    #agent.set_dir_path('mc-prediction')
-    agent.set_dir_path('mc-prediction-es')
-    agent.dir_path = get_mc_prediction_dir_path(agent.dir_path, args.gamma, args.n_episodes_lim)
+    agent.set_dir_path()
+    agent.dir_path = get_mc_prediction_dir_path(agent.dir_path, args.explorable_starts,
+                                                args.gamma, args.n_episodes_lim)
 
     # initialize hjb solver
     sol_hjb = SolverHJB(
@@ -63,20 +63,15 @@ def main():
         # set number of averaged episodes 
         agent.n_avg_episodes = args.n_avg_episodes
 
-        # set epsilons
-        agent.set_constant_epsilons(args.eps_init)
-        #agent.set_glie_epsilons()
-        #agent.set_epsilon_parameters(args.eps_init, args.eps_min, args.eps_max, args.eps_decay)
-
         # set state space and discretize
         agent.set_state_space()
-        agent.discretize_state_space(h=0.1)
-        agent.discretize_action_space(h=0.1)
-        assert agent.state_space_h.shape == sol_hjb.u_opt[::100].shape, ''
+        agent.discretize_state_space(h=0.01)
+        agent.discretize_action_space(h=0.01)
+        assert agent.state_space_h.shape == sol_hjb.u_opt[::10].shape, ''
 
         # set deterministic policy
         policy = np.array([
-            agent.get_action_idx(sol_hjb.u_opt[::100][idx_state])
+            agent.get_action_idx(sol_hjb.u_opt[::10][idx_state])
             for idx_state, _ in enumerate(agent.state_space_h[:, 0])
         ])
 
@@ -93,16 +88,14 @@ def main():
 
         # set state space and discretize
         agent.set_state_space()
-        agent.discretize_state_space()
-        agent.discretize_action_space()
+        agent.discretize_state_space(h=0.01)
 
     # do plots
     if args.do_plots:
         agent.episodes = np.arange(agent.n_episodes)
         agent.plot_total_rewards()
         agent.plot_time_steps()
-        agent.plot_value_function(F_hjb=sol_hjb.F[::100])
-        #agent.plot_sliced_q_tables()
+        agent.plot_value_function(F_hjb=sol_hjb.F[::10])
 
 
     # print running avg
@@ -185,7 +178,6 @@ def mc_prediction(agent, policy, n_steps_lim):
         if agent.logs and ep % 100 == 0:
             msg = agent.log_episodes(ep)
             print(msg)
-
 
     # update npz dict
     agent.update_npz_dict_agent()

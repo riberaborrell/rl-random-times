@@ -1,4 +1,4 @@
-from rl_for_gym.utils_path import get_agent_dir_path
+from rl_for_gym.utils_path import get_env_dir_path
 
 import numpy as np
 import time
@@ -73,8 +73,8 @@ class Agent:
         # logs flag
         self.logs = logs
 
-    def set_dir_path(self, agent_str):
-        self.dir_path = get_agent_dir_path(self.env, agent_str)
+    def set_dir_path(self):
+        self.dir_path = get_env_dir_path(self.env)
 
     def start_timer(self):
         self.ct_initial = time.perf_counter()

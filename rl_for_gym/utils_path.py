@@ -28,6 +28,17 @@ def empty_dir(dir_path):
             except Exception as e:
                 print('Failed to delete {}. Reason: {}'.format((file_path, e)))
 
+def get_env_dir_path(env):
+    dir_path = os.path.join(
+        DATA_PATH,
+        env.spec.id,
+    )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
 def get_agent_dir_path(env, agent):
     dir_path = os.path.join(
         DATA_PATH,
@@ -40,9 +51,18 @@ def get_agent_dir_path(env, agent):
 
     return dir_path
 
-def get_mc_prediction_dir_path(agent_dir_path, gamma, n_episodes):
+def get_mc_prediction_dir_path(env_dir_path, explorable_starts, gamma, n_episodes):
+
+    # set agent name
+    if not explorable_starts:
+        agent_name = 'mc-prediction'
+    else:
+        agent_name = 'mc-prediction-es'
+
+    # set dir path
     dir_path = os.path.join(
-        agent_dir_path,
+        env_dir_path,
+        agent_name,
         'gamma_{:1.2f}'.format(gamma),
         'N_{:.0e}'.format(n_episodes),
     )
