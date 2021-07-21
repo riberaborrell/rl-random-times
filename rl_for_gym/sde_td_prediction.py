@@ -1,7 +1,7 @@
 from sde_agent import SdeAgent
 from base_parser import get_base_parser
 from figures import MyFigure
-from utils_path import get_mc_prediction_dir_path
+from utils_path import get_td_prediction_dir_path
 
 from mds.langevin_nd_hjb_solver import SolverHJB
 
@@ -9,8 +9,6 @@ import gym
 import gym_sde
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 
 def get_parser():
     parser = get_base_parser()
@@ -20,12 +18,6 @@ def get_parser():
         dest='explorable_starts',
         action='store_true',
         help='the initial point of the trajectory is uniform sampled.',
-    )
-    parser.add_argument(
-        '--constant-alpha',
-        dest='constant_alpha',
-        action='store_true',
-        help='the step size parameter is given by alpha',
     )
     return parser
 
@@ -44,9 +36,8 @@ def main():
 
     # get dir path
     agent.set_dir_path()
-    agent.dir_path = get_mc_prediction_dir_path(agent.dir_path, args.explorable_starts,
-                                                args.constant_alpha, args.alpha,
-                                                args.gamma, args.n_episodes_lim)
+    agent.dir_path = get_td_prediction_dir_path(agent.dir_path, args.explorable_starts,
+                                                args.gamma, args.alpha, args.n_episodes_lim)
 
     # initialize hjb solver
     sol_hjb = SolverHJB(
@@ -65,7 +56,6 @@ def main():
 
         # preallocate information for all epochs
         agent.n_episodes = args.n_episodes_lim
-        agent.preallocate_episodes()
 
         # set number of averaged episodes 
         agent.n_avg_episodes = args.n_avg_episodes
@@ -83,7 +73,7 @@ def main():
         ])
 
         # mc prediction algorithm
-        mc_prediction(agent, policy, args.n_steps_lim, args.constant_alpha, args.alpha)
+        td_prediction(agent, policy, args.n_steps_lim, args.alpha)
 
         # save agent
         agent.save()
@@ -99,9 +89,6 @@ def main():
 
     # do plots
     if args.do_plots:
-        agent.episodes = np.arange(agent.n_episodes)
-        agent.plot_total_rewards()
-        agent.plot_time_steps()
         agent.plot_value_function(F_hjb=sol_hjb.F[::10])
 
     # print running avg
@@ -112,13 +99,18 @@ def main():
             msg = agent.log_episodes(ep)
             print(msg)
 
-def mc_prediction(agent, policy, n_steps_lim, constant_alpha=False, alpha=None):
-    if constant_alpha:
-        assert alpha is not None, ''
+def td_prediction(agent, policy, n_steps_lim, alpha):
 
-    # initialize frequency and q-values table
-    agent.initialize_frequency_v_table()
+    # preallocate episodes
+    #agent.preallocate_episodes()
+
+    # initialize v-value table
     agent.initialize_v_table()
+
+    # set values for the target set
+    idx_lb = agent.get_state_idx(agent.env.lb)
+    idx_rb = agent.get_state_idx(agent.env.rb)
+    agent.v_table[idx_lb:idx_rb+1] = 0
 
     # for each episode
     for ep in np.arange(agent.n_episodes):
@@ -126,10 +118,7 @@ def mc_prediction(agent, policy, n_steps_lim, constant_alpha=False, alpha=None):
         # reset environment
         _ = agent.env.reset()
         state = agent.env.state
-
-        # reset trajectory
-        agent.reset_states()
-        agent.reset_rewards()
+        idx_state = agent.get_state_idx(state)
 
         # terminal state flag
         complete = False
@@ -141,9 +130,6 @@ def mc_prediction(agent, policy, n_steps_lim, constant_alpha=False, alpha=None):
             if complete:
                 break
 
-            # get index of the state
-            idx_state = agent.get_state_idx(state)
-
             # choose action following the given policy
             idx_action = policy[idx_state]
             action = agent.action_space_h[idx_action]
@@ -151,51 +137,28 @@ def mc_prediction(agent, policy, n_steps_lim, constant_alpha=False, alpha=None):
             # step dynamics forward
             new_obs, r, complete, _ = agent.env.step(action)
             new_state = agent.env.state
+            idx_new_state = agent.get_state_idx(new_state)
 
-            # save state, actions and reward
-            agent.save_state(state)
-            agent.save_reward(r)
+            # update v values
+            agent.v_table[idx_state] += alpha * (
+                r + agent.gamma * agent.v_table[idx_new_state] - agent.v_table[idx_state]
+            )
 
-            # update state
-            state = new_state
-
-        # compute return
-        agent.compute_discounted_rewards()
-        agent.compute_returns()
-
-        # update v values
-        n_steps_trajectory = agent.states.shape[0]
-        for k in np.arange(n_steps_trajectory):
-
-            # state and its index at step k
-            state = agent.states[k]
-            idx_state = agent.get_state_idx(state)
-
-            g = agent.returns[k]
-
-            # update frequency and q table
-            agent.n_table[idx_state] += 1
-
-            # set learning rate
-            if not constant_alpha:
-                alpha = 1 / agent.n_table[idx_state]
-
-            agent.v_table[idx_state] = agent.v_table[idx_state] \
-                                     + alpha * (g - agent.v_table[idx_state])
+            # update state index
+            idx_state = idx_new_state
 
         # save time steps
-        agent.save_episode(ep, k)
+        #agent.save_episode(ep, k)
 
         # logs
-        if agent.logs and ep % 100 == 0:
-            msg = agent.log_episodes(ep)
-            print(msg)
+        #if agent.logs and ep % 100 == 0:
+        #    msg = agent.log_episodes(ep)
+        #    print(msg)
 
     # update npz dict
     agent.update_npz_dict_agent()
 
     # save frequency and q-value last tables
-    agent.save_frequency_table()
     agent.save_v_table()
 
 if __name__ == '__main__':

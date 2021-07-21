@@ -51,19 +51,57 @@ def get_agent_dir_path(env, agent):
 
     return dir_path
 
-def get_mc_prediction_dir_path(env_dir_path, explorable_starts, gamma, n_episodes):
+def get_mc_prediction_dir_path(env_dir_path, explorable_starts, constant_alpha,
+                               alpha, gamma, n_episodes):
 
     # set agent name
-    if not explorable_starts:
+    if not explorable_starts and not constant_alpha:
         agent_name = 'mc-prediction'
-    else:
+    elif not explorable_starts and constant_alpha:
+        agent_name = 'mc-prediction-alpha'
+    elif explorable_starts and not constant_alpha:
         agent_name = 'mc-prediction-es'
+    else:
+        agent_name = 'mc-prediction-alpha-es'
 
     # set dir path
     dir_path = os.path.join(
         env_dir_path,
         agent_name,
         'gamma_{:1.2f}'.format(gamma),
+    )
+    if not constant_alpha:
+        dir_path = os.path.join(
+            dir_path,
+            'N_{:.0e}'.format(n_episodes),
+        )
+    else:
+        dir_path = os.path.join(
+            dir_path,
+            'alpha_{:1.2f}'.format(alpha),
+            'N_{:.0e}'.format(n_episodes),
+        )
+
+    # create dir path if not exists
+    make_dir_path(dir_path)
+
+    return dir_path
+
+def get_td_prediction_dir_path(env_dir_path, explorable_starts,
+                               gamma, alpha, n_episodes):
+
+    # set agent name
+    if not explorable_starts:
+        agent_name = 'td-prediction'
+    else:
+        agent_name = 'td-prediction-es'
+
+    # set dir path
+    dir_path = os.path.join(
+        env_dir_path,
+        agent_name,
+        'gamma_{:1.2f}'.format(gamma),
+        'alpha_{:1.2f}'.format(alpha),
         'N_{:.0e}'.format(n_episodes),
     )
 
