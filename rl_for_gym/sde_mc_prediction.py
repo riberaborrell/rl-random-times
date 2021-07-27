@@ -1,6 +1,5 @@
 from sde_agent import SdeAgent
 from base_parser import get_base_parser
-from figures import MyFigure
 from utils_path import get_mc_prediction_dir_path
 
 from mds.langevin_nd_hjb_solver import SolverHJB
@@ -83,7 +82,10 @@ def main():
         ])
 
         # mc prediction algorithm
-        mc_prediction(agent, policy, args.n_steps_lim, args.constant_alpha, args.alpha)
+        if not args.constant_alpha:
+            mc_prediction(agent, policy, args.n_steps_lim)
+        else:
+            mc_prediction(agent, policy, args.n_steps_lim, alpha)
 
         # save agent
         agent.save()
@@ -100,21 +102,20 @@ def main():
     # do plots
     if args.do_plots:
         agent.episodes = np.arange(agent.n_episodes)
-        agent.plot_total_rewards()
-        agent.plot_time_steps()
         agent.plot_value_function(F_hjb=sol_hjb.F[::10])
 
-    # print running avg
-    episodes = np.arange(agent.n_episodes)
-    for ep in episodes:
+    # print running avg if load
+    if not args.load:
+        return
 
-        if args.do_report and ep % 1 == 0:
-            msg = agent.log_episodes(ep)
-            print(msg)
+    #episodes = np.arange(agent.n_episodes)
+    #for ep in episodes:
 
-def mc_prediction(agent, policy, n_steps_lim, constant_alpha=False, alpha=None):
-    if constant_alpha:
-        assert alpha is not None, ''
+        #if args.do_report and ep % 100 == 0:
+        #    msg = agent.log_episodes(ep)
+        #    print(msg)
+
+def mc_prediction(agent, policy, n_steps_lim, alpha=None):
 
     # initialize frequency and q-values table
     agent.initialize_frequency_v_table()
@@ -177,11 +178,10 @@ def mc_prediction(agent, policy, n_steps_lim, constant_alpha=False, alpha=None):
             agent.n_table[idx_state] += 1
 
             # set learning rate
-            if not constant_alpha:
+            if alpha is None:
                 alpha = 1 / agent.n_table[idx_state]
 
-            agent.v_table[idx_state] = agent.v_table[idx_state] \
-                                     + alpha * (g - agent.v_table[idx_state])
+            agent.v_table[idx_state] += alpha * (g - agent.v_table[idx_state])
 
         # save time steps
         agent.save_episode(ep, k)

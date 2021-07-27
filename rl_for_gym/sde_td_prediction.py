@@ -1,6 +1,5 @@
 from sde_agent import SdeAgent
 from base_parser import get_base_parser
-from figures import MyFigure
 from utils_path import get_td_prediction_dir_path
 
 from mds.langevin_nd_hjb_solver import SolverHJB
@@ -72,7 +71,7 @@ def main():
             for idx_state, _ in enumerate(agent.state_space_h[:, 0])
         ])
 
-        # mc prediction algorithm
+        # td prediction algorithm
         td_prediction(agent, policy, args.n_steps_lim, args.alpha)
 
         # save agent
@@ -91,18 +90,18 @@ def main():
     if args.do_plots:
         agent.plot_value_function(F_hjb=sol_hjb.F[::10])
 
-    # print running avg
-    episodes = np.arange(agent.n_episodes)
-    for ep in episodes:
+    # print running avg if load
+    if not args.load:
+        return
 
-        if args.do_report and ep % 1 == 0:
-            msg = agent.log_episodes(ep)
-            print(msg)
+    #episodes = np.arange(agent.n_episodes)
+    #for ep in episodes:
+
+    #    if args.do_report and ep % 100 == 0:
+    #        msg = agent.log_episodes(ep)
+    #        print(msg)
 
 def td_prediction(agent, policy, n_steps_lim, alpha):
-
-    # preallocate episodes
-    #agent.preallocate_episodes()
 
     # initialize v-value table
     agent.initialize_v_table()
@@ -146,14 +145,6 @@ def td_prediction(agent, policy, n_steps_lim, alpha):
 
             # update state index
             idx_state = idx_new_state
-
-        # save time steps
-        #agent.save_episode(ep, k)
-
-        # logs
-        #if agent.logs and ep % 100 == 0:
-        #    msg = agent.log_episodes(ep)
-        #    print(msg)
 
     # update npz dict
     agent.update_npz_dict_agent()
