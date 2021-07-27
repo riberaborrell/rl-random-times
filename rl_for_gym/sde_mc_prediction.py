@@ -85,7 +85,7 @@ def main():
         if not args.constant_alpha:
             mc_prediction(agent, policy, args.n_steps_lim)
         else:
-            mc_prediction(agent, policy, args.n_steps_lim, alpha)
+            mc_prediction(agent, policy, args.n_steps_lim, args.alpha)
 
         # save agent
         agent.save()
