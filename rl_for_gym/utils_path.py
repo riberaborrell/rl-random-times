@@ -64,23 +64,21 @@ def get_mc_prediction_dir_path(env_dir_path, explorable_starts, constant_alpha,
     else:
         agent_name = 'mc-prediction-alpha-es'
 
+    # set alpha string
+    if not constant_alpha:
+        alpha_str = ''
+    else:
+        alpha_str = 'alpha_{:1.2f}'.format(alpha)
+
     # set dir path
     dir_path = os.path.join(
         env_dir_path,
         agent_name,
         'gamma_{:1.2f}'.format(gamma),
+        alpha_str,
+        'N_{:.0e}'.format(n_episodes),
+
     )
-    if not constant_alpha:
-        dir_path = os.path.join(
-            dir_path,
-            'N_{:.0e}'.format(n_episodes),
-        )
-    else:
-        dir_path = os.path.join(
-            dir_path,
-            'alpha_{:1.2f}'.format(alpha),
-            'N_{:.0e}'.format(n_episodes),
-        )
 
     # create dir path if not exists
     make_dir_path(dir_path)
@@ -110,9 +108,30 @@ def get_td_prediction_dir_path(env_dir_path, explorable_starts,
 
     return dir_path
 
-def get_mc_dir_path(agent_dir_path, eps_type, n_episodes):
+def get_mc_dir_path(env_dir_path, explorable_starts, constant_alpha, alpha, gamma,
+                    eps_type, n_episodes):
+    # set agent name
+    if not explorable_starts and not constant_alpha:
+        agent_name = 'mc-learning'
+    elif not explorable_starts and constant_alpha:
+        agent_name = 'mc-learning-alpha'
+    elif explorable_starts and not constant_alpha:
+        agent_name = 'mc-learning-es'
+    else:
+        agent_name = 'mc-learning-alpha-es'
+
+    # set alpha string
+    if not constant_alpha:
+        alpha_str = ''
+    else:
+        alpha_str = 'alpha_{:1.2f}'.format(alpha)
+
+    # set dir path
     dir_path = os.path.join(
-        agent_dir_path,
+        env_dir_path,
+        agent_name,
+        'gamma_{:1.2f}'.format(gamma),
+        alpha_str,
         'eps_{}'.format(eps_type),
         'N_{:d}'.format(n_episodes),
     )
@@ -121,6 +140,7 @@ def get_mc_dir_path(agent_dir_path, eps_type, n_episodes):
     make_dir_path(dir_path)
 
     return dir_path
+
 def get_sarsa_lambda_dir_path(agent_dir_path, eps_type, alpha, lam, n_episodes):
     dir_path = os.path.join(
         agent_dir_path,

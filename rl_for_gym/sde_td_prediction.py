@@ -1,6 +1,6 @@
-from sde_agent import SdeAgent
-from base_parser import get_base_parser
-from utils_path import get_td_prediction_dir_path
+from rl_for_gym.sde_agent import SdeAgent
+from rl_for_gym.base_parser import get_base_parser
+from rl_for_gym.utils_path import get_td_prediction_dir_path
 
 from mds.langevin_nd_hjb_solver import SolverHJB
 

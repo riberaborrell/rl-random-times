@@ -1,6 +1,6 @@
-from sde_agent import SdeAgent
-from base_parser import get_base_parser
-from utils_path import get_mc_prediction_dir_path
+from rl_for_gym.sde_agent import SdeAgent
+from rl_for_gym.base_parser import get_base_parser
+from rl_for_gym.utils_path import get_mc_prediction_dir_path
 
 from mds.langevin_nd_hjb_solver import SolverHJB
 
@@ -174,13 +174,14 @@ def mc_prediction(agent, policy, n_steps_lim, alpha=None):
 
             g = agent.returns[k]
 
-            # update frequency and q table
+            # update frequency table
             agent.n_table[idx_state] += 1
 
             # set learning rate
             if alpha is None:
                 alpha = 1 / agent.n_table[idx_state]
 
+            # update v table
             agent.v_table[idx_state] += alpha * (g - agent.v_table[idx_state])
 
         # save time steps

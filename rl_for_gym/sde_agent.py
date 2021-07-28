@@ -1,10 +1,10 @@
-from agent import Agent
+from rl_for_gym.agent import Agent
+from rl_for_gym.figures import MyFigure
+
 from gym.spaces.box import Box
 
-from figures import MyFigure
-from matplotlib import cm
-
 import numpy as np
+from matplotlib import cm
 
 class SdeAgent(Agent):
     '''
