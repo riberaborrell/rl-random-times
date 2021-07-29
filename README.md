@@ -1,1 +1,1 @@
-# RL_for_gym
+# rl-for-gym
