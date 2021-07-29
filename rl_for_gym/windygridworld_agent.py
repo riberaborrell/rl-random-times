@@ -213,7 +213,7 @@ class WindyGridworldAgent(Agent):
             action = self.get_epsilon_greedy_action(ep, state)
 
             # reset trajectory
-            self.reset_trajectory()
+            self.reset_rewards()
 
             # terminal state flag
             complete = False
