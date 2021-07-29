@@ -83,8 +83,8 @@ def main():
 
         # set state space and discretize
         agent.set_state_space()
-        agent.discretize_state_space()
-        agent.discretize_action_space()
+        agent.discretize_state_space(h=0.05)
+        agent.discretize_action_space(h=0.05)
 
     # do plots
     if args.do_plots:

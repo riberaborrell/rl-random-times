@@ -102,6 +102,13 @@ def get_base_parser():
         help='Set number of trajectories in each batch. Default: 10',
     )
     parser.add_argument(
+        '--h',
+        dest='h',
+        type=float,
+        default=0.1,
+        help='Set the discretization step size. Default: 0.1',
+    )
+    parser.add_argument(
         '--render',
         dest='do_render',
         action='store_true',

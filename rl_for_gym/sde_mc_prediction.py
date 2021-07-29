@@ -48,12 +48,13 @@ def main():
                                                 args.gamma, args.n_episodes_lim)
 
     # initialize hjb solver
+    h_hjb = 0.001
     sol_hjb = SolverHJB(
         potential_name='nd_2well',
         n=1,
         alpha=np.ones(1),
         beta=1.,
-        h=0.001,
+        h=h_hjb,
     )
 
     # load already computed solution
@@ -71,13 +72,14 @@ def main():
 
         # set state space and discretize
         agent.set_state_space()
-        agent.discretize_state_space(h=0.01)
-        agent.discretize_action_space(h=0.01)
-        assert agent.state_space_h.shape == sol_hjb.u_opt[::10].shape, ''
+        agent.discretize_state_space(h=args.h)
+        agent.discretize_action_space(h=args.h)
+        k = int(args.h / h_hjb)
+        assert agent.state_space_h.shape == sol_hjb.u_opt[::k].shape, ''
 
         # set deterministic policy
         policy = np.array([
-            agent.get_action_idx(sol_hjb.u_opt[::10][idx_state])
+            agent.get_action_idx(sol_hjb.u_opt[::k][idx_state])
             for idx_state, _ in enumerate(agent.state_space_h[:, 0])
         ])
 
@@ -97,12 +99,12 @@ def main():
 
         # set state space and discretize
         agent.set_state_space()
-        agent.discretize_state_space(h=0.01)
+        agent.discretize_state_space(h=args.h)
 
     # do plots
     if args.do_plots:
         agent.episodes = np.arange(agent.n_episodes)
-        agent.plot_value_function(F_hjb=sol_hjb.F[::10])
+        agent.plot_value_function(F_hjb=sol_hjb.F[::k])
 
     # print running avg if load
     if not args.load:
