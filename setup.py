@@ -1,25 +1,26 @@
-from setuptools import setup, find_packages
+import setuptools
 
 import os
 
+with open("VERSION", "r") as f:
+    VERSION = f.read().strip("\n")
 
-with open('VERSION', 'r') as f:
-    VERSION = f.read().strip('\n')
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
-_dir = os.path.dirname(os.path.realpath(__file__))
-
-with open(os.path.join(_dir, 'README.md'), 'r') as f:
-    README = f.read()
-
-
-setup(
-    name='RL_for_gym',
+setuptools.setup(
+    name='rl-for-gym',
     version=VERSION,
     description='Reinforcement Learning algorithms for gym environments',
+    long_description=long_description,
     long_description_content_type='text/markdown',
-    long_description=README,
-    classifiers=[],
-    url='https://github.com/eborrell/RL_for_gym',
+    url="https://github.com/eborrell/rl-for-gym",
+    project_urls={
+        "Bug Tracker": "https://github.com/eborrell/rl-for-gym/issues",
+    },
+    classifiers=[
+        "Programming Language :: Python :: 3.9",
+    ],
     #license='GNU General Public License V3',
     author='Enric Ribera Borrell',
     author_email='ribera.borrell@me.com',
