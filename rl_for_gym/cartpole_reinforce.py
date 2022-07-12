@@ -23,9 +23,9 @@ class Policy():
 
         # Define network
         self.network = nn.Sequential(
-            nn.Linear(self.n_inputs, 16),
-            nn.ReLU(),
-            nn.Linear(16, self.n_outputs),
+            nn.Linear(self.n_inputs, 32),
+            nn.Tanh(),
+            nn.Linear(32, self.n_outputs),
             nn.Softmax(dim=-1))
 
     def predict(self, state):
@@ -42,67 +42,94 @@ def discount_rewards(rewards, gamma=0.99):
     r = r[::-1].cumsum()[::-1]
     return r - r.mean()
 
-def reinforce(env, Policy, num_episodes=2000,
+def discount_cumsum(x, gamma):
+    n = len(x)
+    x = np.array(x)
+    y = gamma**np.arange(n)
+    z = np.zeros_like(x, dtype=np.float32)
+    for j in range(n):
+        z[j] = sum(x[j:] * y[:n-j])
+    return z
+
+def normalize_advs_trick(x):
+    return (x - np.mean(x))/(np.std(x) + 1e-8)
+
+def reinforce(env_name='CartPole-v0', n_episodes=2000,
               batch_size=10, gamma=0.99):
 
-    # Set up lists to hold results
-    total_rewards = []
-    batch_rewards = []
-    batch_actions = []
-    batch_states = []
-    batch_counter = 1
+    # initialize environment 
+    env = gym.make(env_name)
 
-    # Define optimizer
+    # initialize policy
+    model = Policy(env)
+    #s = env.reset()
+    #print(model.predict(s))
+    #print(model.network(torch.FloatTensor(s)))
+
+    # preallocate lists to hold results
+    batch_states = []
+    batch_actions = []
+    batch_discounted_rewards = []
+    batch_counter = 0
+    total_returns = []
+    total_time_steps = []
+
+    # define optimizer
     optimizer = optim.Adam(
-        Policy.network.parameters(),
+        model.network.parameters(),
         lr=0.01,
     )
 
     action_space = np.arange(env.action_space.n)
-    for ep in np.arange(num_episodes):
+    for ep in np.arange(n_episodes):
+
         # reset state
         state = env.reset()
 
-        # preallocate trajectory
-        states = []
-        rewards = []
-        actions = []
+        # preallocate rewards for the episode
+        ep_rewards = []
+
+        # time step
+        k = 0
 
         complete = False
         while complete == False:
-            # get action following policy
-            action_prob_dist = Policy.predict(state).detach().numpy()
-            action = np.random.choice(action_space, p=action_prob_dist)
 
-            # save state and action
-            states.append(state)
-            actions.append(action)
+            # save state
+            batch_states.append(state.copy())
+
+            # get action following policy
+            action_prob_dist = model.predict(state).detach().numpy()
+            action = np.random.choice(action_space, p=action_prob_dist)
 
             # next step
             state, r, complete, _ = env.step(action)
+            k += 1
 
-            # save reward 
-            rewards.append(r)
+            # save action and reward
+            batch_actions.append(action)
+            ep_rewards.append(r)
 
-        # batch data
-        batch_rewards.extend(discount_rewards(rewards, gamma))
-        batch_states.extend(states)
-        batch_actions.extend(actions)
+        # update batch data
+        batch_discounted_rewards.extend(discount_cumsum(ep_rewards, gamma))
         batch_counter += 1
-        total_rewards.append(sum(rewards))
+        total_returns.append(sum(ep_rewards))
+        total_time_steps.append(k)
 
         # update network if batch is complete 
         if batch_counter == batch_size:
+
             # reset ..
             optimizer.zero_grad()
 
             # tensor states, actions and rewards
             state_tensor = torch.FloatTensor(batch_states)
             action_tensor = torch.LongTensor(batch_actions)
-            reward_tensor = torch.FloatTensor(batch_rewards)
+            batch_discounted_rewards = normalize_advs_trick(batch_discounted_rewards)
+            reward_tensor = torch.FloatTensor(batch_discounted_rewards)
 
             # calculate loss
-            log_action_prob_dists = torch.log(Policy.predict(state_tensor))
+            log_action_prob_dists = torch.log(model.predict(state_tensor))
             log_probs = log_action_prob_dists[np.arange(len(action_tensor)), action_tensor]
             loss = - (reward_tensor * log_probs).mean()
 
@@ -113,44 +140,57 @@ def reinforce(env, Policy, num_episodes=2000,
             optimizer.step()
 
             # reset batch
-            batch_rewards = []
-            batch_actions = []
             batch_states = []
-            batch_counter = 1
+            batch_actions = []
+            batch_discounted_rewards = []
+            batch_counter = 0
 
-        # print running average
-        run_avg_msg = '\rEp: {} Average of last 10: {:.2f}'.format(
-            ep + 1,
-            np.mean(total_rewards[-10:]),
-        )
-        print(run_avg_msg, end="")
+            # print running average
+            run_avg_msg = 'ep: {}, run avg returns: {:.2f}, run avg time steps: {:.2f}'.format(
+                ep + 1,
+                np.mean(total_returns[-batch_size:]),
+                np.mean(total_time_steps[-batch_size:]),
+            )
+            print(run_avg_msg)
 
-    return total_rewards
+    return total_returns, total_time_steps, model
 
 def main():
     args = get_parser().parse_args()
 
-    # tested with with CartPole-v0
-    env = gym.make(args.env_id)
-    s = env.reset()
+    # run reinforce
+    returns, time_steps, model = reinforce(
+        n_episodes=args.n_episodes_lim,
+        batch_size=args.batch_size,
+        gamma=args.gamma,
+    )
 
-    pe = Policy(env)
-    print(pe.predict(s))
-    print(pe.network(torch.FloatTensor(s)))
+    window = args.batch_size
 
-    rewards = reinforce(env, pe)
-    window = 10
-    smoothed_rewards = [
-        np.mean(rewards[i-window:i+1]) if i > window
-        else np.mean(rewards[:i+1]) for i in range(len(rewards))
+    # plot returns
+    smoothed_returns = [
+        np.mean(returns[i-window:i+1]) if i > window
+        else np.mean(returns[:i+1]) for i in range(len(returns))
     ]
-
     plt.figure(figsize=(12, 8))
-    plt.plot(rewards)
-    plt.plot(smoothed_rewards)
-    plt.ylabel('Total Rewards')
+    plt.plot(returns)
+    plt.plot(smoothed_returns)
+    plt.ylabel('Total Returns')
     plt.xlabel('Episodes')
     plt.show()
+
+    # plot time steps
+    smoothed_time_steps = [
+        np.mean(time_steps[i-window:i+1]) if i > window
+        else np.mean(time_steps[:i+1]) for i in range(len(time_steps))
+    ]
+    plt.figure(figsize=(12, 8))
+    plt.plot(time_steps)
+    plt.plot(smoothed_time_steps)
+    plt.ylabel('Total Time steps')
+    plt.xlabel('Episodes')
+    plt.show()
+
 
 if __name__ == '__main__':
     main()

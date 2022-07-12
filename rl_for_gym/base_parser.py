@@ -6,7 +6,7 @@ def get_base_parser():
     parser.add_argument(
         '--env-id',
         dest='env_id',
-        choices=[spec.id for spec in envs.registry.all()],
+        choices=[spec.id for spec in envs.registry.values()],
         default='CartPole-v0',
         help='environment id (default: "CartPole-v0")',
     )
