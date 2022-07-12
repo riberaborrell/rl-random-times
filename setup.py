@@ -1,4 +1,4 @@
-import setuptools
+from setuptools import setup, find_packages
 
 import os
 
@@ -8,7 +8,7 @@ with open("VERSION", "r") as f:
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-setuptools.setup(
+setup(
     name='rl-for-gym',
     version=VERSION,
     description='Reinforcement Learning algorithms for gym environments',
