@@ -1,13 +1,12 @@
+import gym
 import numpy as np
 import matplotlib.pyplot as plt
-import gym
-import sys
-
-from base_parser import get_base_parser
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+from base_parser import get_base_parser
 
 def get_parser():
     parser = get_base_parser()
@@ -32,16 +31,6 @@ class Policy():
         action_prob_dist = self.network(torch.FloatTensor(state))
         return action_prob_dist
 
-def discount_rewards(rewards, gamma=0.99):
-    k_last = len(rewards)
-    r = np.array(
-        [gamma**i * rewards[i] for i in np.arange(k_last)]
-    )
-    # Reverse the array direction for cumsum and then
-    # revert back to the original order
-    r = r[::-1].cumsum()[::-1]
-    return r - r.mean()
-
 def discount_cumsum(x, gamma):
     n = len(x)
     x = np.array(x)
@@ -51,11 +40,20 @@ def discount_cumsum(x, gamma):
         z[j] = sum(x[j:] * y[:n-j])
     return z
 
+def discount_cumsum2(x, gamma):
+    n = len(x)
+    y = np.array(
+        [gamma**i * x[i] for i in np.arange(n)]
+    )
+    z = y[::-1].cumsum()[::-1]
+    return z
+    #return z - z.mean()
+
 def normalize_advs_trick(x):
     return (x - np.mean(x))/(np.std(x) + 1e-8)
 
-def reinforce(env_name='CartPole-v0', n_episodes=2000,
-              batch_size=10, gamma=0.99):
+def reinforce(env_name='CartPole-v0', gamma=0.99, lr=0.01, n_episodes=2000,
+              batch_size=10):
 
     # initialize environment 
     env = gym.make(env_name)
@@ -69,7 +67,7 @@ def reinforce(env_name='CartPole-v0', n_episodes=2000,
     # preallocate lists to hold results
     batch_states = []
     batch_actions = []
-    batch_discounted_rewards = []
+    batch_discounted_returns = []
     batch_counter = 0
     total_returns = []
     total_time_steps = []
@@ -77,7 +75,7 @@ def reinforce(env_name='CartPole-v0', n_episodes=2000,
     # define optimizer
     optimizer = optim.Adam(
         model.network.parameters(),
-        lr=0.01,
+        lr=lr,
     )
 
     action_space = np.arange(env.action_space.n)
@@ -111,7 +109,7 @@ def reinforce(env_name='CartPole-v0', n_episodes=2000,
             ep_rewards.append(r)
 
         # update batch data
-        batch_discounted_rewards.extend(discount_cumsum(ep_rewards, gamma))
+        batch_discounted_returns.extend(discount_cumsum(ep_rewards, gamma))
         batch_counter += 1
         total_returns.append(sum(ep_rewards))
         total_time_steps.append(k)
@@ -119,19 +117,20 @@ def reinforce(env_name='CartPole-v0', n_episodes=2000,
         # update network if batch is complete 
         if batch_counter == batch_size:
 
-            # reset ..
+            # reset gradients ..
             optimizer.zero_grad()
 
             # tensor states, actions and rewards
             state_tensor = torch.FloatTensor(batch_states)
             action_tensor = torch.LongTensor(batch_actions)
-            batch_discounted_rewards = normalize_advs_trick(batch_discounted_rewards)
-            reward_tensor = torch.FloatTensor(batch_discounted_rewards)
+            batch_discounted_returns = normalize_advs_trick(batch_discounted_returns)
+            returns_tensor = torch.FloatTensor(batch_discounted_returns)
 
             # calculate loss
             log_action_prob_dists = torch.log(model.predict(state_tensor))
             log_probs = log_action_prob_dists[np.arange(len(action_tensor)), action_tensor]
-            loss = - (reward_tensor * log_probs).mean()
+            breakpoint()
+            loss = - (returns_tensor * log_probs).mean()
 
             # calculate gradients
             loss.backward()
@@ -142,7 +141,7 @@ def reinforce(env_name='CartPole-v0', n_episodes=2000,
             # reset batch
             batch_states = []
             batch_actions = []
-            batch_discounted_rewards = []
+            batch_discounted_returns = []
             batch_counter = 0
 
             # print running average
@@ -160,9 +159,10 @@ def main():
 
     # run reinforce
     returns, time_steps, model = reinforce(
+        gamma=args.gamma,
+        lr=args.lr,
         n_episodes=args.n_episodes_lim,
         batch_size=args.batch_size,
-        gamma=args.gamma,
     )
 
     window = args.batch_size

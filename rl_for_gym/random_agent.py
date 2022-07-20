@@ -14,7 +14,15 @@ def main():
     env = gym.make(args.env_id)
 
     env.reset()
+
+    # terminal state flag
+    complete = False
+
     for _ in range(args.n_steps_lim):
+
+        # interrupt if we are in a terminal state
+        if complete:
+            break
 
         # render environment
         if args.do_render:

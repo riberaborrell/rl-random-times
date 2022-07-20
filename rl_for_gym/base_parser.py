@@ -25,8 +25,8 @@ def get_base_parser():
         help='discount factor (default: 1.)',
     )
     parser.add_argument(
-        '--alpha',
-        dest='alpha',
+        '--lr',
+        dest='lr',
         type=float,
         default=0.01,
         help='Set learning rate. Default: 0.01',

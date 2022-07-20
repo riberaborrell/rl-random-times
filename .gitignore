@@ -24,3 +24,6 @@ venv/
 
 # pycharm idea
 .idea/
+
+# desktop service store
+.DS_Store
