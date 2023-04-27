@@ -14,12 +14,12 @@ setup(
     description='Reinforcement Learning algorithms for gym environments',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url="https://github.com/eborrell/rl-for-gym",
+    url="https://github.com/riberaborrell/rl-for-gym",
     project_urls={
-        "Bug Tracker": "https://github.com/eborrell/rl-for-gym/issues",
+        "Bug Tracker": "https://github.com/riberaborrell/rl-for-gym/issues",
     },
     classifiers=[
-        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.11",
     ],
     #license='GNU General Public License V3',
     author='Enric Ribera Borrell',
@@ -29,7 +29,8 @@ setup(
     include_package_data=True,
     packages=find_packages(),
     install_requires=[
-        'gym',
+        'mujoco',
+        'gymnasium',
         'numpy',
         'matplotlib',
         'torch',
