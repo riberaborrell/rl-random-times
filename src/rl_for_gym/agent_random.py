@@ -1,6 +1,9 @@
 from base_parser import get_base_parser
+from utils_numeric import discount_cumsum
 
 import gymnasium as gym
+import numpy as np
+import matplotlib.pyplot as plt
 
 def get_parser():
     parser = get_base_parser()
@@ -16,30 +19,55 @@ def main():
     else:
         env = gym.make(args.env_id)
 
-    # reset environment
-    obs, info = env.reset(seed=args.seed)
+    # preallocate arrays
+    returns = np.empty(args.n_episodes)
+    time_steps = np.empty(args.n_episodes, dtype=np.int32)
 
-    # terminal state flag
-    done = False
+    # sample trajectories
+    for ep in np.arange(args.n_episodes):
 
-    # truncated flag
-    truncated = False
+        # reset environment
+        obs, info = env.reset(seed=args.seed)
 
-    for _ in range(args.n_steps_lim):
+        # reset rewards
+        rewards = np.empty(0)
 
-        # interrupt if we are in a terminal state
-        if done or truncated:
-            break
+        for k in range(args.n_steps_lim):
 
-        # render environment
+            # take a random action
+            action = env.action_space.sample()
 
-        # take a random action
-        action = env.action_space.sample()
+            # step dynamics forward
+            obs, r, done, truncated, info = env.step(action)
 
-        # step dynamics forward
-        obs, r, done, truncated, info = env.step(action)
+            # save reward
+            rewards = np.append(rewards, r)
+
+            # interrupt if we are in a terminal state
+            if done or truncated:
+                break
+
+        # compute return at each time step
+        episode_returns = discount_cumsum(rewards, args.gamma)
+
+        # save return and time steps
+        returns[ep] = episode_returns[0]
+        time_steps[ep] = k
+
+        if (ep + 1) % args.log_interval == 0:
+            msg = 'ep: {:3d}, time steps: {:4d}, return {:2.2f}' \
+                  ''.format(
+                        ep+1,
+                        time_steps[ep],
+                        returns[ep],
+                      )
+            print(msg)
 
     env.close()
+
+    # do plots
+    if not args.plot:
+        return
 
 if __name__ == '__main__':
     main()
