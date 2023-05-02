@@ -1,6 +1,6 @@
-from base_parser import get_base_parser
-
 import gymnasium as gym
+
+from rl_for_gym.base_parser import get_base_parser
 
 def get_parser():
     parser = get_base_parser()

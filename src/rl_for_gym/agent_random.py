@@ -1,9 +1,9 @@
-from base_parser import get_base_parser
-from utils_numeric import discount_cumsum
-
 import gymnasium as gym
 import numpy as np
 import matplotlib.pyplot as plt
+
+from rl_for_gym.base_parser import get_base_parser
+from rl_for_gym.utils_numeric import discount_cumsum
 
 def get_parser():
     parser = get_base_parser()
