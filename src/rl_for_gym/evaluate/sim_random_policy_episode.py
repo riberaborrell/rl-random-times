@@ -1,14 +1,10 @@
+
 import gymnasium as gym
 
-from rl_for_gym.base_parser import get_base_parser
-
-def get_parser():
-    parser = get_base_parser()
-    parser.description = ''
-    return parser
+from rl_for_gym.utils.base_parser import get_base_parser
 
 def main():
-    args = get_parser().parse_args()
+    args = get_base_parser().parse_args()
 
     # create gym env 
     if args.render:
@@ -19,19 +15,20 @@ def main():
     # reset environment
     obs, info = env.reset(seed=args.seed)
 
-    for _ in range(args.n_steps_lim):
+    for k in range(args.n_steps_lim):
 
         # take a random action
         action = env.action_space.sample()
 
         # step dynamics forward
-        obs, r, done, truncated, info = env.step(action)
+        obs, r, terminated, truncated, info = env.step(action)
+        truncated = False if not args.truncate else truncated
+        done = terminated or truncated
 
         # log
-        #print(obs, r, done, truncated)
+        print(k, obs, r, done, truncated)
 
-        # interrupt if we are in a terminal state
-        if done or truncated:
+        if done:
             break
 
     env.close()
