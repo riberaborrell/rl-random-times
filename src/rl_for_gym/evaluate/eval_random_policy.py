@@ -1,5 +1,4 @@
 import gymnasium as gym
-import gym_gridworlds
 import numpy as np
 import matplotlib.pyplot as plt
 
