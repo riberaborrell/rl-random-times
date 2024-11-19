@@ -69,7 +69,6 @@ class ReinforceStochastic:
 
         # get dir path
         dir_path = get_reinforce_simple_dir_path(**self.__dict__)
-        breakpoint()
 
         # load results
         if load:
