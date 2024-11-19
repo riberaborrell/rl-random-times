@@ -1,26 +1,44 @@
+from typing import Optional
+
 import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from rl_for_gym.spg.models import GaussianPolicyLearntCov
+from rl_for_gym.spg.models import CategoricalPolicy, GaussianPolicyLearntCov
 from rl_for_gym.utils.base_parser import get_base_parser
-from rl_for_gym.utils.path import get_reinforce_simple_dir_path, load_data, save_data, save_model, load_model
+from rl_for_gym.utils.path import load_data, save_data, get_reinforce_simple_dir_path
 from rl_for_gym.utils.plots import plot_y_per_episode
 
 class ReinforceStochastic:
-    # REINFORCE with continuous actions
-    def __init__(self, env, gamma, policy_type, policy_noise, n_layers, d_hidden_layer, lr, n_episodes,
-                 seed, optim_type='adam'):
-    #def __init__(self, env, gamma: float = 0.99, policy_type, policy_noise, lr: float= 1e-4, n_episodes: int = 1000, seed: int = 0):
+    ''' Basic implementation of the REINFORCE algorithm i.e. stochastic policy gradient
+        where the q-value function is approximated by the return at that time step.
+    '''
+    def __init__(self, env, gamma, n_layers, d_hidden_layer, lr, n_episodes, seed,
+                 policy_type: Optional[str] = None, policy_noise: Optional[str] = None,
+                 optim_type='adam'):
 
-        self.agent = 'reinforce-stoch-simple'
+        if isinstance(env.action_space, gym.spaces.Box):
+            self.is_action_continuous = True
+        elif isinstance(env.action_space, gym.spaces.Discrete):
+            self.is_action_continuous = False
+        else:
+            raise ValueError('Action space must be either continuous or discrete.')
+
+        # agent name
+        if self.is_action_continuous:
+            self.agent = 'reinforce-cont-simple'
+        else:
+            self.agent = 'reinforce-discrete-simple'
 
         # environment and state/action dimensions
         self.env = env
         state_dim = env.observation_space.shape[0]
-        action_dim = env.action_space.shape[0]
+        if self.is_action_continuous:
+            action_dim = env.action_space.shape[0]
+        else:
+            n_actions = env.action_space.n
 
         # discount
         self.gamma = gamma
@@ -31,13 +49,21 @@ class ReinforceStochastic:
         self.n_layers = n_layers
         self.d_hidden_layer = d_hidden_layer
         hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
-        self.policy = GaussianPolicyLearntCov(state_dim, action_dim, hidden_sizes,
-                                              activation=nn.Tanh(), std_init=policy_noise)
+        if self.is_action_continuous:
+            self.policy = GaussianPolicyLearntCov(state_dim, action_dim, hidden_sizes,
+                                                  activation=nn.Tanh(), std_init=policy_noise)
+        else:
+            self.policy = CategoricalPolicy(state_dim, n_actions, hidden_sizes, activation=nn.Tanh())
 
         # sgd
         self.optim_type = optim_type
         self.lr = lr
-        self.optimizer = optim.Adam(self.policy.parameters(), lr=self.lr)
+        if self.optim_type == 'adam':
+            self.optimizer = optim.Adam(self.policy.parameters(), lr=self.lr)
+        elif self.optim_type == 'sgd':
+            self.optimizer = optim.SGD(self.policy.parameters(), lr=self.lr)
+        else:
+            raise ValueError('Optimizer must be either adam or sgd.')
 
         # number of episodes
         self.n_episodes = n_episodes
@@ -65,7 +91,7 @@ class ReinforceStochastic:
 
         return loss.detach().numpy().item()
 
-    def run_reinforce(self, live_plot_freq=None, log_freq=100, load=False):
+    def run_reinforce(self, log_freq=100, load=False):
 
         # get dir path
         dir_path = get_reinforce_simple_dir_path(**self.__dict__)
@@ -88,7 +114,11 @@ class ReinforceStochastic:
                 # sample action from policy
                 state_torch = torch.FloatTensor(state)
                 action, _ = self.policy.sample_action(state_torch, log_prob=False)
-                action_torch = torch.FloatTensor(action)
+
+                if self.is_action_continuous:
+                    action_torch = torch.FloatTensor(action)
+                else:
+                    action_torch = torch.FloatTensor([action.item()])
 
                 # step environment dynamics forward 
                 next_state, reward, terminated, truncated, _ = self.env.step(action)
@@ -109,9 +139,10 @@ class ReinforceStochastic:
             # save return and time steps
             returns[ep] = sum(rewards)
             time_steps[ep] = self.env._elapsed_steps
-            print('Ep.: {:d}, return: {:4.2f}, time steps: {:.1f}'.format(
-                ep, returns[ep], time_steps[ep]
-            ))
+            if ep % log_freq == 0:
+                print('Ep.: {:d}, return: {:4.2f}, time steps: {:.1f}'.format(
+                    ep, returns[ep], time_steps[ep]
+                ))
 
         data = {
             'returns': returns,
@@ -122,9 +153,6 @@ class ReinforceStochastic:
 
 def main():
     args = get_base_parser().parse_args()
-
-    # restrict to continuous action spaces
-    assert args.env_id in ["MountainCarContinuous-v0", "Pendulum-v1"], ''
 
     # create gym env 
     env = gym.make(args.env_id, max_episode_steps=args.n_steps_lim)
