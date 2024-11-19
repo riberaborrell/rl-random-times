@@ -71,3 +71,84 @@ def get_dir_path(env, algorithm_name: str, param_str: str = '') -> str:
     make_dir_path(os.path.join(get_data_dir(), dir_path))
 
     return dir_path
+
+def get_model_arch_str(**kwargs):
+    string = ''
+    if 'n_layers' in kwargs.keys():
+        string += 'n-layers{:d}_'.format(kwargs['n_layers'])
+    if 'd_hidden_layer' in kwargs.keys():
+        string += 'hidden-size{:d}_'.format(kwargs['d_hidden_layer'])
+    return string
+
+def get_z_estimation_str(**kwargs):
+    if 'on-policy' in kwargs['agent'] or kwargs['agent'] == 'model-based-dpg':
+        return 'z-estimated_' if kwargs['estimate_z'] else 'z-neglected_'
+    else:
+        return ''
+
+def get_lr_and_batch_size_str(**kwargs):
+    string = ''
+    string += 'lr{:.1e}_'.format(kwargs['lr']) if 'lr' in kwargs.keys() else ''
+    string += 'lr-init{:.1e}_'.format(kwargs['lr_init']) if 'lr_init' in kwargs.keys() else ''
+    string += 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) if 'lr_actor' in kwargs.keys() else ''
+    string += 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) if 'lr_critic' in kwargs.keys() else ''
+    string += 'K{:d}_'.format(int(kwargs['batch_size'])) if 'batch_size' in kwargs.keys() else ''
+
+    if 'mini_batch_size' in kwargs.keys() and kwargs['mini_batch_size'] is not None:
+        if kwargs['mini_batch_size_type'] == 'constant':
+            string += 'mini-K{:d}_'.format(int(kwargs['mini_batch_size']))
+        else: #kwargs['mini_batch_size_type'] == 'adaptive'
+            string += 'mini-K-adapt{:d}_'.format(int(kwargs['mini_batch_size']))
+    return string
+
+def get_iter_str(**kwargs):
+    if 'n_episodes' in kwargs.keys():
+        string = 'n-episodes{:.0e}_'.format(kwargs['n_episodes'])
+    elif 'n_total_steps' in kwargs.keys():
+        string = 'n-total-steps{:.0e}_'.format(kwargs['n_total_steps'])
+    elif 'n_grad_iterations' in kwargs.keys():
+        string = 'n-grad-iter{:.0e}_'.format(kwargs['n_grad_iterations'])
+    else:
+        string = ''
+    return string
+
+def get_seed_str(**kwargs):
+    if 'seed' not in kwargs.keys() or not kwargs['seed']:
+        string = 'seedNone'.format(kwargs['seed'])
+    else:
+        string = 'seed{:1d}'.format(kwargs['seed'])
+    return string
+
+def get_reinforce_simple_dir_path(**kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + 'policy-{}_'.format(kwargs['policy_type']) \
+              + 'policy-noise{:.2f}_'.format(kwargs['policy_noise']) \
+              + get_lr_and_batch_size_str(**kwargs) \
+              + 'optim-{}_'.format(kwargs['optim_type']) \
+              + get_iter_str(**kwargs) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(kwargs['env'], kwargs['agent'], param_str)
+
+def get_reinforce_stoch_dir_path(**kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + 'policy-{}_'.format(kwargs['policy_type']) \
+              + 'policy-noise{:.2f}_'.format(kwargs['policy_noise']) \
+              + '{}_'.format(kwargs['return_type']) \
+              + get_z_estimation_str(**kwargs) \
+              + get_lr_and_batch_size_str(**kwargs) \
+              + 'optim-{}_'.format(kwargs['optim_type']) \
+              + get_iter_str(**kwargs) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(kwargs['env'], kwargs['agent'], param_str)

@@ -16,6 +16,9 @@ def compute_running_variance(array, run_window=10):
         else np.var(array[:i+1]) for i in range(len(array))
     ])
 
+def cumsum_numpy(x):
+    return x[::-1].cumsum()[::-1]
+
 def discount_cumsum(x, gamma):
     n = len(x)
     x = np.array(x)

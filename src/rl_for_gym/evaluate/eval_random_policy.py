@@ -5,9 +5,10 @@ import matplotlib.pyplot as plt
 from rl_for_gym.utils.base_parser import get_base_parser
 from rl_for_gym.utils.numeric import discount_cumsum
 from rl_for_gym.utils.path import load_data, save_data, get_dir_path
+from rl_for_gym.utils.plots import plot_y_per_episode
 
-def random_policy(env, gamma: float = 1., n_episodes: int = 100, n_steps_lim: int = 10**5,
-                  log_freq: int = 10, seed=None, load=False):
+def random_policy(env, gamma: float = 1., n_episodes: int = 100,
+                  truncate: bool = True, log_freq: int = 10, seed=None, load=False):
 
     # get dir path
     dir_path = get_dir_path(env, algorithm_name='random')
@@ -29,21 +30,27 @@ def random_policy(env, gamma: float = 1., n_episodes: int = 100, n_steps_lim: in
         # reset rewards
         rewards = np.empty(0)
 
-        for k in range(1, n_steps_lim+1):
+        # done flag
+        done = False
+
+        # time steps counter
+        k = 1
+
+        while not done:
 
             # take a random action
             action = env.action_space.sample()
 
             # step dynamics forward
             obs, r, terminated, truncated, info = env.step(action)
+            truncated = False if not truncate else truncated
             done = terminated or truncated
 
             # save reward
             rewards = np.append(rewards, r)
 
-            # interrupt if we are in a terminal state
-            if done:
-                break
+            # update time step
+            k += 1
 
         # compute return at each time step
         episode_returns = discount_cumsum(rewards, gamma)
@@ -71,17 +78,18 @@ def random_policy(env, gamma: float = 1., n_episodes: int = 100, n_steps_lim: in
 def main():
     args = get_base_parser().parse_args()
 
+    # set render mode
+    render_mode = 'human' if args.render else None
+
     # create gym env 
-    if args.render:
-        env = gym.make(args.env_id, render_mode='human')
-    else:
-        env = gym.make(args.env_id)
+    env = gym.make(args.env_id, max_episode_steps=args.n_steps_lim, render_mode=render_mode)
 
     # run random policy
     succ, data = random_policy(
         env,
         n_episodes=args.n_episodes,
         seed=args.seed,
+        truncate=args.truncate,
         log_freq=args.log_freq,
         load=args.load,
     )
@@ -91,44 +99,18 @@ def main():
     if not args.plot or not succ:
         return
 
-    # unpack data
-    returns = data['returns']
-    time_steps = data['time_steps']
+    # plot returns and time steps
+    x = np.arange(args.n_episodes)
+    plot_y_per_episode(x, data['returns'], run_window=100, title='Returns', legend=True)
+    plot_y_per_episode(x, data['time_steps'], run_window=100, title='Time steps')
 
     # fht histogram
     x = np.arange(100)
-    counts, bins = np.histogram(time_steps, bins=x, density=True)
+    counts, bins = np.histogram(data['time_steps'], bins=x, density=True)
     fig, ax = plt.subplots()
     ax.set_xlabel('m')
     ax.hist(bins[:-1], bins, weights=counts, alpha=0.5, color='tab:orange', label=r'histogram')
     ax.legend()
-    plt.show()
-    return
-
-    window = args.batch_size
-
-    # plot returns
-    smoothed_returns = [
-        np.mean(returns[i-window:i+1]) if i > window
-        else np.mean(returns[:i+1]) for i in range(len(returns))
-    ]
-    plt.figure(figsize=(12, 8))
-    plt.plot(returns)
-    plt.plot(smoothed_returns)
-    plt.ylabel('Total Returns')
-    plt.xlabel('Episodes')
-    plt.show()
-
-    # plot time steps
-    smoothed_time_steps = [
-        np.mean(time_steps[i-window:i+1]) if i > window
-        else np.mean(time_steps[:i+1]) for i in range(len(time_steps))
-    ]
-    plt.figure(figsize=(12, 8))
-    plt.plot(time_steps)
-    plt.plot(smoothed_time_steps)
-    plt.ylabel('Total Time steps')
-    plt.xlabel('Episodes')
     plt.show()
 
 if __name__ == '__main__':
