@@ -7,6 +7,9 @@ data/
 # notebooks
 notebooks/
 
+# scripts
+scripts/
+
 # pyenv version file
 .python-version
 
