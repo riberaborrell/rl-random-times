@@ -1,3 +1,6 @@
+# config file
+src/rl_for_gym/utils/config.py
+
 # data files
 data/
 
