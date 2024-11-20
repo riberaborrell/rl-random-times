@@ -6,7 +6,7 @@ from rl_for_gym.utils.base_parser import get_base_parser
 from rl_for_gym.utils.path import load_data, save_data, get_dir_path
 from rl_for_gym.utils.plots import plot_y_per_episode
 
-def random_policy_vect(env, gamma: float = 1., n_steps_lim: int = 10**6,
+def random_policy_vect(env, gamma: float = 1., batch_size: int = 100, n_steps_lim: int = 10**6,
                        truncate=True, log_freq: int = 10, seed=None, load=False):
 
     # get dir path
@@ -17,12 +17,12 @@ def random_policy_vect(env, gamma: float = 1., n_steps_lim: int = 10**6,
         return load_data(dir_path)
 
     # preallocate arrays
-    batch_size = env.unwrapped.batch_size
     returns = np.empty(batch_size, dtype=np.float32)
     time_steps = np.empty(batch_size, dtype=np.int32)
 
     # reset environment
-    obs, info = env.reset(seed=seed)
+    options = {'batch_size': batch_size}
+    obs, info = env.reset(seed=seed, options=options)
 
     # reset total rewards
     rewards = np.empty((batch_size, 0))
@@ -34,7 +34,7 @@ def random_policy_vect(env, gamma: float = 1., n_steps_lim: int = 10**6,
     for k in range(n_steps_lim):
 
         # take a random actions
-        action = env.action_space.sample()
+        action = env.unwrapped.action_space_vect.sample()
 
         # step dynamics forward
         obs, r, terminated, truncated, infos = env.step(action)
@@ -78,12 +78,12 @@ def main():
     args = get_base_parser().parse_args()
 
     # create gym env
-    env = gym.make(args.env_id, max_episode_steps=args.n_steps_lim,
-                   is_vectorized=True, batch_size=args.n_episodes)
+    env = gym.make(args.env_id, max_episode_steps=args.n_steps_lim, is_vectorized=True)
 
     # run random policy vectorized
     succ, data = random_policy_vect(
         env,
+        batch_size=args.n_episodes,
         seed=args.seed,
         truncate=args.truncate,
         log_freq=args.log_freq,

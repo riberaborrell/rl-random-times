@@ -14,7 +14,7 @@ from rl_for_gym.utils.path import load_data, save_data, save_model, load_model, 
 
 class ReinforceStochastic:
     def __init__(self, env, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
-                 lr, n_grad_iterations, seed, policy_type=None, policy_noise=None,
+                 batch_size, lr, n_grad_iterations, seed, policy_type=None, policy_noise=None,
                  estimate_z=None, mini_batch_size=None, mini_batch_size_type='constant',
                  memory_size=int(1e6), optim_type='adam'):
 
@@ -35,20 +35,11 @@ class ReinforceStochastic:
         self.env = env
 
         # get state and action dimensions
-        self.state_dim = env.observation_space.shape[1] if env.unwrapped.is_vectorized else env.observation_space.shape[0]
+        self.state_dim = env.observation_space.shape[0]
         if self.is_action_continuous:
-            self.action_dim = env.action_space.shape[1] if env.unwrapped.is_vectorized else env.action_space.shape[0]
+            self.action_dim = env.action_space.shape[0]
         else:
-            self.n_actions = env.action_space.nvec[0] if env.unwrapped.is_vectorized else env.action_space.n
-
-        """
-        if 'num_envs' not in env.__dict__.keys():
-            state_dim = env.observation_space.shape[0]
-            action_dim = env.action_space.shape[0]
-        else:
-            state_dim = env.observation_space.shape[1]
-            action_dim = env.action_space.shape[1]
-        """
+            self.n_actions = env.action_space.n
 
         # expectation type and return type
         self.expectation_type = expectation_type
@@ -75,7 +66,7 @@ class ReinforceStochastic:
             self.policy = CategoricalPolicy(self.state_dim, self.n_actions, hidden_sizes, activation=nn.Tanh())
 
         # stochastic gradient descent
-        self.batch_size = env.unwrapped.batch_size
+        self.batch_size = batch_size
         self.lr = lr
         self.n_grad_iterations = n_grad_iterations
 
@@ -109,7 +100,7 @@ class ReinforceStochastic:
         states, actions, rewards = [], [], []
 
         # reset environment
-        state, _ = self.env.reset(seed=self.seed)
+        state, _ = self.env.reset(seed=self.seed, options={'batch_size': self.batch_size})
 
         # terminated and done flags
         been_terminated = np.full((self.batch_size,), False)

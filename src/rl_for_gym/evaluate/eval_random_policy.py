@@ -68,6 +68,9 @@ def random_policy(env, gamma: float = 1., n_episodes: int = 100,
                       )
             print(msg)
 
+    print('Mean return: ', np.mean(returns))
+    print('Mean time steps: ', np.mean(time_steps))
+
     data = {
         'returns': returns,
         'time_steps': time_steps,
