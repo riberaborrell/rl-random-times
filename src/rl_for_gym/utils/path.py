@@ -151,7 +151,24 @@ def get_reinforce_simple_dir_path(**kwargs):
     else:
         return get_reinforce_discrete_simple_dir_path(**kwargs)
 
-def get_reinforce_stoch_dir_path(**kwargs):
+def get_reinforce_stoch_discrete_dir_path(**kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env']._max_episode_steps) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + '{}_'.format(kwargs['return_type']) \
+              + get_z_estimation_str(**kwargs) \
+              + get_lr_and_batch_size_str(**kwargs) \
+              + 'optim-{}_'.format(kwargs['optim_type']) \
+              + get_iter_str(**kwargs) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(kwargs['env'], kwargs['agent'], param_str)
+
+def get_reinforce_stoch_cont_dir_path(**kwargs):
     '''
     '''
 
@@ -169,3 +186,9 @@ def get_reinforce_stoch_dir_path(**kwargs):
               + get_seed_str(**kwargs)
 
     return get_dir_path(kwargs['env'], kwargs['agent'], param_str)
+
+def get_reinforce_stoch_dir_path(**kwargs):
+    if kwargs['is_action_continuous']:
+        return get_reinforce_stoch_cont_dir_path(**kwargs)
+    else:
+        return get_reinforce_stoch_discrete_dir_path(**kwargs)

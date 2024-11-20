@@ -12,8 +12,8 @@ from rl_for_gym.utils.plots import plot_y_per_grad_iteration
 def main():
     args = get_base_parser().parse_args()
 
-    # restrict to continuous action spaces
-    assert args.env_id in ["MountainCarContinuous-v0", "Pendulum-v1"], ''
+    # restrict to environments with custom vectorized implementation
+    assert args.env_id in ["MountainCarContinuous-v0", "CartPole-v1"], ''
 
     # create gym env 
     env = gym.make(args.env_id, max_episode_steps=args.n_steps_lim,
@@ -21,9 +21,8 @@ def main():
 
     # reinforce stochastic agent
     agent = ReinforceStochastic(env, args.expectation_type, args.return_type, args.gamma,
-                                args.gaussian_policy_type, args.policy_noise,
-                                args.n_layers, args.d_hidden, args.lr,
-                                args.n_grad_iterations, args.seed, args.estimate_z,
+                                args.n_layers, args.d_hidden, args.lr, args.n_grad_iterations, args.seed,
+                                args.gaussian_policy_type, args.policy_noise, args.estimate_z,
                                 args.mini_batch_size, args.mini_batch_size_type,
                                 args.replay_size, args.optim_type)
 
@@ -42,8 +41,8 @@ def main():
 
     # plot returns and time steps
     x = np.arange(args.n_grad_iterations + 1)
-    plot_y_per_grad_iteration(x, data['mean_returns'], run_window=1, title='Mean return', legend=True)
-    plot_y_per_grad_iteration(x, data['mean_lengths'], run_window=1, title='Mean time steps')
+    plot_y_per_grad_iteration(x, data['mean_returns'], run_window=10, title='Mean return', legend=True)
+    plot_y_per_grad_iteration(x, data['mean_lengths'], run_window=10, title='Mean time steps')
 
 if __name__ == '__main__':
     main()

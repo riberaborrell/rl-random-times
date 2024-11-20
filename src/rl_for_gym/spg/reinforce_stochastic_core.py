@@ -1,40 +1,45 @@
 import time
 
+import gymnasium as gym
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-#from gym_sde_is.wrappers.record_episode_statistics import RecordEpisodeStatisticsVect
-#from gym_sde_is.wrappers.save_episode_trajectory import SaveEpisodeTrajectoryVect
-
-from rl_for_gym.spg.models import GaussianPolicyConstantCov, GaussianPolicyLearntCov
+from rl_for_gym.spg.models import CategoricalPolicy, GaussianPolicyConstantCov, GaussianPolicyLearntCov
 from rl_for_gym.spg.replay_memories import ReplayMemoryReturn as Memory
-#ffrom rl_sde_is.utils.approximate_methods import evaluate_stoch_policy_model
 from rl_for_gym.utils.statistics import Statistics
-from rl_for_gym.utils.numeric import cumsum_numpy as cumsum
-from rl_for_gym.utils.path import get_reinforce_stoch_dir_path, load_data, save_data, save_model, load_model
-#from rl_sde_is.utils.plots import initialize_gaussian_policy_1d_figure, update_gaussian_policy_1d_figure
+from rl_for_gym.utils.numeric import cumsum_numpy as cumsum, normalize_array
+from rl_for_gym.utils.path import load_data, save_data, save_model, load_model, get_reinforce_stoch_dir_path
 
 class ReinforceStochastic:
-    def __init__(self, env, expectation_type, return_type, gamma, policy_type, policy_noise,
-                 n_layers, d_hidden_layer, lr, n_grad_iterations,
-                 seed, estimate_z=None, mini_batch_size=None, mini_batch_size_type='constant',
+    def __init__(self, env, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
+                 lr, n_grad_iterations, seed, policy_type=None, policy_noise=None,
+                 estimate_z=None, mini_batch_size=None, mini_batch_size_type='constant',
                  memory_size=int(1e6), optim_type='adam'):
 
-        # type of agent / algorithm
-        self.agent = 'reinforce-stoch-{}'.format(expectation_type)
+        if isinstance(env.action_space, gym.spaces.Box):
+            self.is_action_continuous = True
+        elif isinstance(env.action_space, gym.spaces.Discrete) or isinstance(env.action_space, gym.spaces.MultiDiscrete):
+            self.is_action_continuous = False
+        else:
+            raise ValueError('Action space must be either continuous or discrete.')
+
+        # agent name
+        if self.is_action_continuous:
+            self.agent = 'reinforce-cont-{}'.format(expectation_type)
+        else:
+            self.agent = 'reinforce-discrete-{}'.format(expectation_type)
 
         # environment and state and action dimension
         self.env = env
 
         # get state and action dimensions
-        if not env.unwrapped.is_vectorized:
-            self.state_dim = env.observation_space.shape[0]
-            self.action_dim = env.action_space.shape[0]
+        self.state_dim = env.observation_space.shape[1] if env.unwrapped.is_vectorized else env.observation_space.shape[0]
+        if self.is_action_continuous:
+            self.action_dim = env.action_space.shape[1] if env.unwrapped.is_vectorized else env.action_space.shape[0]
         else:
-            self.state_dim = env.observation_space.shape[1]
-            self.action_dim = env.action_space.shape[1]
+            self.n_actions = env.action_space.nvec[0] if env.unwrapped.is_vectorized else env.action_space.n
 
         """
         if 'num_envs' not in env.__dict__.keys():
@@ -60,12 +65,14 @@ class ReinforceStochastic:
 
         # initialize policy model
         hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
-        if policy_type == 'const-cov':
+        if self.is_action_continuous and policy_type == 'const-cov':
             self.policy = GaussianPolicyConstantCov(self.state_dim, self.action_dim, hidden_sizes,
                                                     activation=nn.Tanh(), std=self.policy_noise)
-        else:
+        elif self.is_action_continuous and policy_type == 'learn-cov':
             self.policy = GaussianPolicyLearntCov(self.state_dim, self.action_dim, hidden_sizes,
                                                   activation=nn.Tanh(), std_init=self.policy_noise)
+        else:
+            self.policy = CategoricalPolicy(self.state_dim, self.n_actions, hidden_sizes, activation=nn.Tanh())
 
         # stochastic gradient descent
         self.batch_size = env.unwrapped.batch_size
@@ -161,7 +168,8 @@ class ReinforceStochastic:
             else: # return_type == 'n-return'
                 trajs_returns.append(cumsum(trajs_rewards[i]))
 
-        return np.vstack(trajs_states), np.vstack(trajs_actions), np.hstack(trajs_returns), returns, time_steps
+        trajs_actions = np.vstack(trajs_actions) if self.is_action_continuous else np.hstack(trajs_actions)
+        return np.vstack(trajs_states), trajs_actions, np.hstack(trajs_returns), returns, time_steps
 
     def sample_loss_random_time(self):
         ''' Sample and compute loss function corresponding to the policy gradient with
@@ -170,6 +178,9 @@ class ReinforceStochastic:
 
         # sample trajectories
         states, actions, n_returns, returns, time_steps = self.sample_trajectories()
+
+        # normalize n-returns
+        n_returns = normalize_array(n_returns, eps=1e-5)
 
         # convert to torch tensors
         states = torch.FloatTensor(states)

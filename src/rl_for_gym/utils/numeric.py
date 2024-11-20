@@ -1,20 +1,23 @@
+from typing import Optional
+
 import numpy as np
 
-def compute_running_mean(array, run_window=10):
-    ''' computes the running mean / moving average of the given array along the given running window.
+def compute_running_mean(x: np.array, run_window: Optional[int] = 10):
+    ''' running mean / moving average of the array along the given running window.
     '''
     return np.array([
-        np.mean(array[i-run_window:i+1]) if i > run_window
-        else np.mean(array[:i+1]) for i in range(len(array))
+        np.mean(x[i-run_window:i+1]) if i > run_window
+        else np.mean(x[:i+1]) for i in range(len(x))
     ])
 
-def compute_running_variance(array, run_window=10):
-    ''' computes the running variance of the given array along the given running window.
+def compute_running_variance(array: np.array, run_window: Optional[int] = 10):
+    ''' running variance of the array along the given running window.
     '''
     return np.array([
         np.var(array[i-run_window:i+1]) if i > run_window
         else np.var(array[:i+1]) for i in range(len(array))
     ])
+
 
 def cumsum_numpy(x):
     return x[::-1].cumsum()[::-1]
@@ -37,10 +40,12 @@ def discount_cumsum2(x, gamma):
     return z
     #return z - z.mean()
 
-def normalize_advs_trick(x, eps=1e-8):
-    ''' normalize reward
-    '''
-    #return (x - np.mean(x))/(np.std(x) + eps)
-    return (x - x.mean()) / (x.std() + eps)
+def normalize_list(x, eps: Optional[float] = 1e-5):
+    ''' Normalize the list by subtracting the mean and dividing by the standard deviation.'''
+    return (x - x.mean()) / (x.std() + 1e-5)
+
+def normalize_array(x: np.array, eps: Optional[float] = 1e-5):
+    ''' Normalize the array by subtracting the mean and dividing by the standard deviation.'''
+    return (x - np.mean(x)) / (np.std(x) + 1e-5)
 
 
