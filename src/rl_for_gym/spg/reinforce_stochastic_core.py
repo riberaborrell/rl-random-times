@@ -211,15 +211,25 @@ class ReinforceStochastic:
         # sample trajectories
         states, actions, n_returns, returns, time_steps = self.sample_trajectories()
 
+        # normalize n-returns
+        n_returns = normalize_array(n_returns, eps=1e-5)
+
         # initialize memory
-        memory = Memory(size=states.shape[0]+1, state_dim=self.state_dim,
-                        action_dim=self.action_dim,  return_type=self.return_type)
+        if  self.is_action_continuous:
+            memory = Memory(
+                size=states.shape[0]+1,
+                state_dim=self.state_dim,
+                action_dim=self.action_dim
+            )
+        else:
+            memory = Memory(
+                size=states.shape[0]+1,
+                state_dim=self.state_dim,
+                is_action_continuous=False,
+            )
 
         # store experiences in memory
-        if self.return_type == 'initial-return':
-            memory.store_vectorized(states, actions, initial_returns=n_returns)
-        else:
-            memory.store_vectorized(states, actions, n_returns=n_returns)
+        memory.store_vectorized(states, actions, returns=n_returns)
 
         # sample batch of experiences from memory
         if self.mini_batch_size_type == 'adaptive':
@@ -232,8 +242,10 @@ class ReinforceStochastic:
         # estimate mean trajectory length
         mean_length = time_steps.mean() if self.estimate_z else 1
 
+        # normalize n-returns
+        n_returns = batch['returns']
+
         # calculate loss
-        n_returns = batch['n-returns'] if self.return_type == 'n-return' else batch['initial-returns']
         phi = - (log_probs * n_returns)
         loss = phi.mean()
         with torch.no_grad():
@@ -248,6 +260,9 @@ class ReinforceStochastic:
 
         #update parameters
         self.optimizer.step()
+
+        # re-scale learning rate back
+        self.optimizer.param_groups[0]['lr'] /= mean_length
 
         return loss, loss_var, returns, time_steps
 
