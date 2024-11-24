@@ -59,7 +59,7 @@ class ReinforceStochastic:
         if self.is_action_continuous and policy_type == 'const-cov':
             self.policy = GaussianPolicyConstantCov(self.state_dim, self.action_dim, hidden_sizes,
                                                     activation=nn.Tanh(), std=self.policy_noise)
-        elif self.is_action_continuous and policy_type == 'learn-cov':
+        elif self.is_action_continuous and policy_type == 'learnt-cov':
             self.policy = GaussianPolicyLearntCov(self.state_dim, self.action_dim, hidden_sizes,
                                                   activation=nn.Tanh(), std_init=self.policy_noise)
         else:
@@ -203,7 +203,7 @@ class ReinforceStochastic:
         states, actions, n_returns, returns, time_steps = self.sample_trajectories()
 
         # normalize n-returns
-        n_returns = normalize_array(n_returns, eps=1e-5)
+        #n_returns = normalize_array(n_returns, eps=1e-5)
 
         # initialize memory
         if  self.is_action_continuous:
@@ -235,6 +235,7 @@ class ReinforceStochastic:
 
         # normalize n-returns
         n_returns = batch['returns']
+        n_returns = normalize_array(n_returns, eps=1e-5)
 
         # calculate loss
         phi = - (log_probs * n_returns)

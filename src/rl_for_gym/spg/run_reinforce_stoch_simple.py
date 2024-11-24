@@ -8,7 +8,7 @@ import torch.optim as optim
 
 from rl_for_gym.spg.models import CategoricalPolicy, GaussianPolicyLearntCov
 from rl_for_gym.utils.base_parser import get_base_parser
-from rl_for_gym.utils.numeric import normalize_list
+from rl_for_gym.utils.numeric import normalize_array
 from rl_for_gym.utils.path import load_data, save_data, get_reinforce_simple_dir_path
 from rl_for_gym.utils.plots import plot_y_per_episode
 
@@ -79,7 +79,7 @@ class ReinforceStochastic:
             G = r + self.gamma * G
             discounted_rewards.insert(0, G)
         discounted_rewards = torch.tensor(discounted_rewards, dtype=torch.float32)
-        discounted_rewards = normalize_list(discounted_rewards, eps=1e-5)
+        discounted_rewards = normalize_array(discounted_rewards, eps=1e-5)
         loss = []
         for log_prob, Gt in zip(log_probs, discounted_rewards):
             loss.append(-log_prob * Gt)

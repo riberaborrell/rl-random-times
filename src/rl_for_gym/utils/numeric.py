@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
+import torch
 
 def compute_running_mean(x: np.array, run_window: Optional[int] = 10):
     ''' running mean / moving average of the array along the given running window.
@@ -40,12 +41,9 @@ def discount_cumsum2(x, gamma):
     return z
     #return z - z.mean()
 
-def normalize_list(x, eps: Optional[float] = 1e-5):
-    ''' Normalize the list by subtracting the mean and dividing by the standard deviation.'''
+def normalize_array(x: Union[np.ndarray, torch.Tensor], eps: Optional[float] = 1e-5):
+    ''' Normalize the np.array or torch.tensor by subtracting the mean
+        and dividing by the standard deviation.
+    '''
+    assert x.ndim == 1, 'Input must be a 1D array'
     return (x - x.mean()) / (x.std() + 1e-5)
-
-def normalize_array(x: np.array, eps: Optional[float] = 1e-5):
-    ''' Normalize the array by subtracting the mean and dividing by the standard deviation.'''
-    return (x - np.mean(x)) / (np.std(x) + 1e-5)
-
-
