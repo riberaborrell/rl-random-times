@@ -11,30 +11,27 @@ def random_policy(env, gamma: float = 1., n_episodes: int = 100,
                   truncate: bool = True, log_freq: int = 10, seed=None, load=False):
 
     # get dir path
-    dir_path = get_dir_path(env, algorithm_name='random')
+    dir_path = get_dir_path(env.spec.id, algorithm_name='random')
 
     # load results
     if load:
         return load_data(dir_path)
 
     # preallocate arrays
-    returns = np.empty(n_episodes)
-    time_steps = np.empty(n_episodes, dtype=np.int32)
+    returns = np.zeros(n_episodes)
+    time_steps = np.zeros(n_episodes, dtype=np.int32)
 
     # sample trajectories
     for ep in np.arange(n_episodes):
 
         # reset environment
-        obs, info = env.reset(seed=seed)
+        obs, info = env.reset()#seed=seed)
 
         # reset rewards
         rewards = np.empty(0)
 
         # done flag
         done = False
-
-        # time steps counter
-        k = 1
 
         while not done:
 
@@ -49,15 +46,12 @@ def random_policy(env, gamma: float = 1., n_episodes: int = 100,
             # save reward
             rewards = np.append(rewards, r)
 
-            # update time step
-            k += 1
-
         # compute return at each time step
         episode_returns = discount_cumsum(rewards, gamma)
 
         # save return and time steps
         returns[ep] = episode_returns[0]
-        time_steps[ep] = k
+        time_steps[ep] = env._elapsed_steps
 
         if (ep + 1) % log_freq == 0:
             msg = 'ep: {:3d}, time steps: {:4d}, return {:2.2f}' \
@@ -68,8 +62,8 @@ def random_policy(env, gamma: float = 1., n_episodes: int = 100,
                       )
             print(msg)
 
-    print('Mean return: ', np.mean(returns))
-    print('Mean time steps: ', np.mean(time_steps))
+    print('Mean return: {:.1f}'.format(np.mean(returns)))
+    print('Mean time steps: {:.1f}'.format(np.mean(time_steps)))
 
     data = {
         'returns': returns,

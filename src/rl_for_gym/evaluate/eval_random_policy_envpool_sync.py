@@ -1,41 +1,48 @@
+import envpool
 import gymnasium as gym
 import numpy as np
 import matplotlib.pyplot as plt
 
 from rl_for_gym.utils.base_parser import get_base_parser
-from rl_for_gym.utils.numeric import discount_cumsum
 from rl_for_gym.utils.path import load_data, save_data, get_dir_path
 from rl_for_gym.utils.plots import plot_y_per_episode
 
-def random_policy_sync(env, gamma: float = 1., truncate=True, log_freq: int = 10, seed=None, load=False):
+def random_policy_sync(env, env_id: str, gamma: float = 1., n_steps_lim: int = 10**6, n_envs: int = 1,
+                       truncate=True, log_freq: int = 10, seed=None, load=False):
 
     # get dir path
-    dir_path = get_dir_path(env.spec.id, algorithm_name='random')
+    dir_path = get_dir_path(env_id, algorithm_name='random')
 
     # load results
     if load:
         return load_data(dir_path)
 
+    # preallocate arrays
+    batch_size = n_envs
+    returns = np.empty(batch_size, dtype=np.float32)
+    time_steps = np.empty(batch_size, dtype=np.int32)
+
     # reset environment
-    obs, info = env.reset()#seed=seed)
+    obs, info = env.reset()
 
     # reset rewards
-    batch_size = env.num_envs
-    #rewards = np.empty((batch_size, 0))
-    rewards = []
+    rewards = np.empty((batch_size, 0))
 
-    # terminated flags
+    # terminated and done flags
     been_terminated = np.full((batch_size,), False)
     new_terminated = np.full((batch_size,), False)
-    done = new_terminated
+    done = been_terminated
+
+    # time step counter
+    k = 1
 
     while not done.all():
 
         # take a random actions
-        actions = env.action_space.sample()
+        action = np.stack([env.action_space.sample() for _ in range(batch_size)])
 
         # step dynamics forward
-        obs, r, terminated, truncated, infos = env.step(actions)
+        obs, r, terminated, truncated, infos = env.step(action)
 
         # check if truncattion is allowed
         if not truncate:
@@ -48,36 +55,24 @@ def random_policy_sync(env, gamma: float = 1., truncate=True, log_freq: int = 10
         # done flags
         done = np.logical_or(been_terminated, truncated)
 
-        # number of time steps elapsed
-        #print(k, done.sum(), new_terminated.sum())
         # save reward
-        #rewards = np.hstack((rewards, np.expand_dims(r, axis=1)))
-        rewards.append(r)
+        rewards = np.hstack((rewards, np.expand_dims(r, axis=1)))
 
         # save time steps
-        #if new_terminated.any() or truncated.any():
-        #    idx = new_terminated | truncated
-            #returns[idx] = np.sum(rewards[idx], axis=1)
-            #time_steps[idx] = k
+        if new_terminated.any() or truncated.any():
+            idx = new_terminated | truncated
+            returns[idx] = np.sum(rewards[idx], axis=1)
+            time_steps[idx] = k
 
         # interrupt if all trajectories have reached a terminal state or have been truncated 
         if done.all():
             break
 
+        # increment time step counter
+        k += 1
 
-    # get episode lengths
-    time_steps = np.array([e._elapsed_steps for e in env.envs], dtype=np.int32)
-
-    # compute returns
-    #TODO: generalize to discounted returns
-    #returns = np.zeros(batch_size, dtype=np.float32)
-    #for i in range(batch_size):
-        #returns[i] = discount_cumsum(rewards[i, :time_steps[i]], gamma)
-    #    returns[i] = np.stack(rewards)[:time_steps[i], i].sum()
-    returns = np.array([np.stack(rewards)[:time_steps[i], i].sum() for i in range(batch_size)])
-
-    print('Mean return: {:.1f}'.format(np.mean(returns)))
-    print('Mean time steps: {:.1f}'.format(np.mean(time_steps)))
+    print('Mean return: ', np.mean(returns))
+    print('Mean time steps: ', np.mean(time_steps))
 
     data = {
         'returns': returns,
@@ -91,18 +86,15 @@ def main():
     args = get_base_parser().parse_args()
 
     # create gym env
-    env = gym.make_vec(args.env_id, num_envs=args.n_episodes,# batch_size=args.batch_size,
-                       vectorization_mode="sync")
-
-    # set max episode steps
-    if args.n_steps_lim is not None:
-        for i in range(env.num_envs):
-            env.envs[i]._max_episode_steps = args.n_steps_lim
+    env = envpool.make(args.env_id, env_type="gym", num_envs=args.n_envs)
 
     # run random policy vectorized
     succ, data = random_policy_sync(
         env,
+        args.env_id,
         seed=args.seed,
+        n_steps_lim=args.n_steps_lim,
+        n_envs=args.n_envs,
         truncate=args.truncate,
         log_freq=args.log_freq,
         load=args.load,

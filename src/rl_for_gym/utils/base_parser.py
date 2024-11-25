@@ -172,6 +172,18 @@ def get_base_parser():
         help='Set the discretization step size. Default: 0.1',
     )
     parser.add_argument(
+        '--n-envs',
+        type=int,
+        default=None,
+        help='Set number of Envpool environments. Default: None',
+    )
+    parser.add_argument(
+        '--vect-mode',
+        type=str,
+        default=None,
+        help='Set gym/Envpool vectorization mode. Default: None',
+    )
+    parser.add_argument(
         '--not-truncate',
         dest='truncate',
         action='store_false',

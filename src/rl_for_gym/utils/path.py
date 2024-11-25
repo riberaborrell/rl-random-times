@@ -62,10 +62,10 @@ def save_model(model, dir_path: str, file_name: str):
 def load_model(model, rel_dir_path, file_name):
     model.load_state_dict(torch.load(os.path.join(get_data_dir(), rel_dir_path, file_name)))
 
-def get_dir_path(env, algorithm_name: str, param_str: str = '') -> str:
+def get_dir_path(env_name: str, algorithm_name: str, param_str: str = '') -> str:
 
     # relative directory path
-    dir_path = os.path.join(env.spec.name, algorithm_name, param_str)
+    dir_path = os.path.join(env_name, algorithm_name, param_str)
 
     # create dir path if not exists
     make_dir_path(os.path.join(get_data_dir(), dir_path))
