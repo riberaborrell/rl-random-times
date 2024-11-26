@@ -16,6 +16,10 @@ def random_policy_vect(env, gamma: float = 1., batch_size: int = 100, n_steps_li
     if load:
         return load_data(dir_path)
 
+    # set seed
+    if seed is not None:
+        env.action_space.seed(seed)
+
     # preallocate arrays
     returns = np.empty(batch_size, dtype=np.float32)
     time_steps = np.empty(batch_size, dtype=np.int32)

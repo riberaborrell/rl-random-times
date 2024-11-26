@@ -17,6 +17,10 @@ def random_policy(env, gamma: float = 1., n_episodes: int = 100,
     if load:
         return load_data(dir_path)
 
+    # set seed
+    if seed is not None:
+        env.action_space.seed(seed)
+
     # preallocate arrays
     returns = np.zeros(n_episodes)
     time_steps = np.zeros(n_episodes, dtype=np.int32)
@@ -25,7 +29,10 @@ def random_policy(env, gamma: float = 1., n_episodes: int = 100,
     for ep in np.arange(n_episodes):
 
         # reset environment
-        obs, info = env.reset()#seed=seed)
+        if ep == 0:
+            obs, info = env.reset(seed=seed)
+        else:
+            obs, info = env.reset()
 
         # reset rewards
         rewards = np.empty(0)

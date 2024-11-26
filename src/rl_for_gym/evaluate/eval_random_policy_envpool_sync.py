@@ -17,6 +17,9 @@ def random_policy_sync(env, env_id: str, gamma: float = 1.,
     if load:
         return load_data(dir_path)
 
+    # set seed
+    env.action_space.seed(env.spec.config.seed)
+
     # preallocate arrays
     batch_size = env.spec.config.num_envs
     returns = np.empty(batch_size, dtype=np.float32)
