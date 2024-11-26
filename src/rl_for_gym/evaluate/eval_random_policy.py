@@ -62,8 +62,8 @@ def random_policy(env, gamma: float = 1., n_episodes: int = 100,
                       )
             print(msg)
 
-    print('Mean return: {:.1f}'.format(np.mean(returns)))
-    print('Mean time steps: {:.1f}'.format(np.mean(time_steps)))
+    print('Mean return: {:.3f}'.format(np.mean(returns)))
+    print('Mean time steps: {:.3f}'.format(np.mean(time_steps)))
 
     data = {
         'returns': returns,

@@ -20,6 +20,9 @@ class ReinforceStochastic:
                  policy_type: Optional[str] = None, policy_noise: Optional[str] = None,
                  optim_type='adam'):
 
+        # environment id
+        self.env_id = env.spec.id
+
         if isinstance(env.action_space, gym.spaces.Box):
             self.is_action_continuous = True
         elif isinstance(env.action_space, gym.spaces.Discrete):

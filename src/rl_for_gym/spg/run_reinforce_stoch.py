@@ -1,3 +1,4 @@
+import envpool
 import gymnasium as gym
 import numpy as np
 import torch
@@ -13,13 +14,19 @@ def main():
     args = get_base_parser().parse_args()
 
     # restrict to environments with custom vectorized implementation
-    assert args.env_id in ["CartPole-v1", "MountainCar-v0", "MountainCarContinuous-v0"], ''
+    #assert args.env_id in ["CartPole-v1", "MountainCar-v0", "MountainCarContinuous-v0"], ''
 
     # create gym env 
-    env = gym.make(args.env_id, max_episode_steps=args.n_steps_lim, is_vectorized=True)
+    #env = gym.make(args.env_id, max_episode_steps=args.n_steps_lim, is_vectorized=True)
+    if args.n_steps_lim is None:
+        env = envpool.make_gymnasium(args.env_id, num_envs=args.batch_size, seed=args.seed)
+    else:
+        env = envpool.make_gymnasium(args.env_id, num_envs=args.batch_size,
+                                     seed=args.seed, max_episode_steps=args.n_steps_lim)
+
 
     # reinforce stochastic agent
-    agent = ReinforceStochastic(env, args.expectation_type, args.return_type, args.gamma,
+    agent = ReinforceStochastic(env, args.env_id, args.expectation_type, args.return_type, args.gamma,
                                 args.n_layers, args.d_hidden, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
                                 args.gaussian_policy_type, args.policy_noise, args.estimate_z,
                                 args.mini_batch_size, args.mini_batch_size_type,

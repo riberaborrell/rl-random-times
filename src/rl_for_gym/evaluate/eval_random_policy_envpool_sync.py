@@ -7,8 +7,8 @@ from rl_for_gym.utils.base_parser import get_base_parser
 from rl_for_gym.utils.path import load_data, save_data, get_dir_path
 from rl_for_gym.utils.plots import plot_y_per_episode
 
-def random_policy_sync(env, env_id: str, gamma: float = 1., n_steps_lim: int = 10**6, n_envs: int = 1,
-                       truncate=True, log_freq: int = 10, seed=None, load=False):
+def random_policy_sync(env, env_id: str, gamma: float = 1.,
+                       truncate=True, log_freq: int = 10, load=False):
 
     # get dir path
     dir_path = get_dir_path(env_id, algorithm_name='random')
@@ -18,7 +18,7 @@ def random_policy_sync(env, env_id: str, gamma: float = 1., n_steps_lim: int = 1
         return load_data(dir_path)
 
     # preallocate arrays
-    batch_size = n_envs
+    batch_size = env.spec.config.num_envs
     returns = np.empty(batch_size, dtype=np.float32)
     time_steps = np.empty(batch_size, dtype=np.int32)
 
@@ -71,8 +71,8 @@ def random_policy_sync(env, env_id: str, gamma: float = 1., n_steps_lim: int = 1
         # increment time step counter
         k += 1
 
-    print('Mean return: ', np.mean(returns))
-    print('Mean time steps: ', np.mean(time_steps))
+    print('Mean return: {:.3f}'.format(np.mean(returns)))
+    print('Mean time steps: {:.3f}'.format(np.mean(time_steps)))
 
     data = {
         'returns': returns,
@@ -86,15 +86,16 @@ def main():
     args = get_base_parser().parse_args()
 
     # create gym env
-    env = envpool.make(args.env_id, env_type="gym", num_envs=args.n_envs)
+    if args.n_steps_lim is None:
+        env = envpool.make_gymnasium(args.env_id, num_envs=args.n_envs, seed=args.seed)
+    else:
+        env = envpool.make_gymnasium(args.env_id, num_envs=args.n_envs,
+                                     seed=args.seed, max_episode_steps=args.n_steps_lim)
 
     # run random policy vectorized
     succ, data = random_policy_sync(
         env,
         args.env_id,
-        seed=args.seed,
-        n_steps_lim=args.n_steps_lim,
-        n_envs=args.n_envs,
         truncate=args.truncate,
         log_freq=args.log_freq,
         load=args.load,

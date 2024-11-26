@@ -62,10 +62,10 @@ def save_model(model, dir_path: str, file_name: str):
 def load_model(model, rel_dir_path, file_name):
     model.load_state_dict(torch.load(os.path.join(get_data_dir(), rel_dir_path, file_name)))
 
-def get_dir_path(env_name: str, algorithm_name: str, param_str: str = '') -> str:
+def get_dir_path(env_id: str, algorithm_name: str, param_str: str = '') -> str:
 
     # relative directory path
-    dir_path = os.path.join(env_name, algorithm_name, param_str)
+    dir_path = os.path.join(env_id, algorithm_name, param_str)
 
     # create dir path if not exists
     make_dir_path(os.path.join(get_data_dir(), dir_path))
@@ -129,7 +129,7 @@ def get_reinforce_discrete_simple_dir_path(**kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(kwargs['env'], kwargs['agent'], param_str)
+    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
 
 def get_reinforce_cont_simple_dir_path(**kwargs):
     # set parameters string
@@ -143,7 +143,7 @@ def get_reinforce_cont_simple_dir_path(**kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(kwargs['env'], kwargs['agent'], param_str)
+    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
 
 def get_reinforce_simple_dir_path(**kwargs):
     if kwargs['is_action_continuous']:
@@ -156,7 +156,8 @@ def get_reinforce_stoch_discrete_dir_path(**kwargs):
     '''
 
     # set parameters string
-    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env']._max_episode_steps) \
+    #param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env']._max_episode_steps) \
+    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env'].spec.config.max_episode_steps) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + '{}_'.format(kwargs['return_type']) \
@@ -166,14 +167,15 @@ def get_reinforce_stoch_discrete_dir_path(**kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(kwargs['env'], kwargs['agent'], param_str)
+    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
 
 def get_reinforce_stoch_cont_dir_path(**kwargs):
     '''
     '''
 
     # set parameters string
-    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env']._max_episode_steps) \
+    #param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env']._max_episode_steps) \
+    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env'].spec.config.max_episode_steps) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + 'policy-{}_'.format(kwargs['policy_type']) \
@@ -185,7 +187,7 @@ def get_reinforce_stoch_cont_dir_path(**kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(kwargs['env'], kwargs['agent'], param_str)
+    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
 
 def get_reinforce_stoch_dir_path(**kwargs):
     if kwargs['is_action_continuous']:

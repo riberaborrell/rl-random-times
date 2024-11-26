@@ -13,7 +13,7 @@ from rl_for_gym.utils.numeric import cumsum_numpy as cumsum, normalize_array
 from rl_for_gym.utils.path import load_data, save_data, save_model, load_model, get_reinforce_stoch_dir_path
 
 class ReinforceStochastic:
-    def __init__(self, env, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
+    def __init__(self, env, env_id, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
                  batch_size, lr, n_grad_iterations, seed, policy_type=None, policy_noise=None,
                  estimate_z=None, mini_batch_size=None, mini_batch_size_type='constant',
                  memory_size=int(1e6), optim_type='adam'):
@@ -32,6 +32,7 @@ class ReinforceStochastic:
             self.agent = 'reinforce-discrete-{}'.format(expectation_type)
 
         # environment and state and action dimension
+        self.env_id = env_id
         self.env = env
 
         # get state and action dimensions
@@ -100,7 +101,8 @@ class ReinforceStochastic:
         states, actions, rewards = [], [], []
 
         # reset environment
-        state, _ = self.env.reset(seed=self.seed, options={'batch_size': self.batch_size})
+        #state, _ = self.env.reset(seed=self.seed, options={'batch_size': self.batch_size})
+        state, _ = self.env.reset()
 
         # terminated and done flags
         been_terminated = np.full((self.batch_size,), False)
