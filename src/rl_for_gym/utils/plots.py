@@ -3,6 +3,12 @@ import numpy as np
 
 from rl_for_gym.utils.numeric import compute_running_mean
 
+# tableau palettes from matplotlib 
+COLORS_TAB10 = [plt.cm.tab10(i) for i in range(20)]
+COLORS_TAB20 = [plt.cm.tab20(i) for i in range(20)]
+COLORS_TAB20b = [plt.cm.tab20b(i) for i in range(20)]
+COLORS_TAB20c = [plt.cm.tab20c(i) for i in range(20)]
+
 def get_plot_function(ax, plot_scale):
     if plot_scale == 'linear':
         return ax.plot
@@ -43,6 +49,97 @@ def plot_y_per_grad_iteration(x, y, **kwargs):
 def plot_y_per_time_steps(x, y, **kwargs):
     plot_y_per_x(x, y, xlabel='Time steps', **kwargs)
 
+def plot_y_per_ct(x, y, **kwargs):
+    plot_y_per_x(x, y, xlabel='CT(s)', **kwargs)
+
+def plot_ys_per_x(x, ys, run_window=1, hlines=None, title='', plot_scale='linear',
+                  xlabel='', xlim=None, ylim=None, labels=None, colors=None,
+                  legend=False, loc=None, file_path=None):
+    n_lines = len(ys)
+    if labels is None:
+        labels = [None for i in range(n_lines)]
+    if colors is None:
+        colors = [COLORS_TAB10[i] for i in range(n_lines)]
+    if type(x) is not list:
+        x = [x for i in range(n_lines)]
+    run_mean_ys = np.array([compute_running_mean(y, run_window) if run_window > 1 else None for y in ys])
+    fig, ax = plt.subplots()
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    plot_fn = get_plot_function(ax, plot_scale)
+    for i in range(n_lines):
+        if run_window == 1:
+            plot_fn(x[i], ys[i], label=labels[i], color=colors[i], lw=4)
+        else:
+            plot_fn(x[i], ys[i], label=labels[i], color=colors[i], alpha=0.25, lw=4)
+            plot_fn(x[i], run_mean_ys[i], label=labels[i], color=colors[i])
+    if hlines:
+        for (hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label, lw=4.)
+    if legend: plt.legend(loc=loc)
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
+
+def plot_ys_per_episode(x, ys, **kwargs):
+    plot_ys_per_x(x, ys, xlabel='Episodes', **kwargs)
+
+def plot_ys_per_grad_iteration(x, ys, **kwargs):
+    plot_ys_per_x(x, ys, xlabel='Grad. iterations', **kwargs)
+
+def plot_ys_per_time_steps(x, ys, **kwargs):
+    plot_ys_per_x(x, ys, xlabel='Time steps', **kwargs)
+
+def plot_ys_per_ct(x, ys, **kwargs):
+    plot_ys_per_x(x, ys, xlabel='CT(s)', **kwargs)
+
+def plot_y_avg_per_x(x, ys, hlines=None, title: str = '', xlabel: str = '', xlim=None, ylim=None,
+                     plot_scale='linear', legend: bool = False, loc: str = 'upper right', file_path=None):
+    y = np.mean(ys, axis=0)
+    error = np.sqrt(np.var(ys, axis=0))
+    fig, ax = plt.subplots()
+    plot_fn = get_plot_function(ax, plot_scale)
+    ax.set_title(title, size=20)
+    ax.set_xlabel(xlabel)
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    plot_fn(x, y, label='Mean')
+    ax.fill_between(x, y-error, y+error, alpha=0.4, label='Standard deviation')
+    if hlines:
+        for (hline, color, ls, label) in hlines:
+            ax.axhline(y=hline, c=color, ls=ls, label=label)
+    if legend: plt.legend(loc=loc)
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
+
+def plot_y_avg_per_episode(x, ys, **kwargs):
+    plot_y_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
+
+def plot_y_avg_per_grad_iteration(x, ys, **kwargs):
+    plot_y_avg_per_x(x, ys, xlabel='Grad. iterations', **kwargs)
+
+def plot_y_avg_per_time_steps(x, ys, **kwargs):
+    plot_y_avg_per_x(x, ys, xlabel='Time steps', **kwargs)
+
+def plot_y_avg_per_ct(x, ys, **kwargs):
+    plot_y_avg_per_x(x, ys, xlabel='CT(s)', **kwargs)
+
+def plot_lr_grid_search(lrs, ys, title='', plot_scale='loglog', xlim=None, ylim=None, colors=None,
+                        labels=None, ls='-', file_path=None):
+    n_seeds = ys[0].shape[0]
+    fig, ax = plt.subplots()
+    plot_fn = get_plot_function(ax, plot_scale)
+    ax.set_title(title),
+    if xlim: ax.set_xlim(xlim)
+    if ylim: ax.set_ylim(ylim)
+    for i in range(len(lrs)):
+        for j in range(n_seeds):
+            if labels is not None:
+                plot_fn(lrs[i], ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8, label=labels[i][j])
+            else:
+                plot_fn(lrs[i], ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8)
+    if labels is not None:
+        ax.legend()
+    plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
 def plot_fht_histogram(time_steps, n_steps_lim=None):
 
