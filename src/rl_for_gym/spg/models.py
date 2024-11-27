@@ -41,11 +41,12 @@ class StochasticPolicy(nn.Module):
                 nn.init.uniform_(module.bias, -5e-3, 5e-3)
 
 class CategoricalPolicy(StochasticPolicy):
-    def __init__(self, state_dim, n_actions, hidden_sizes, activation, seed=0):
+    def __init__(self, state_dim, n_actions, hidden_sizes, activation, seed=None):
         super().__init__()
 
         # fix seed
-        #torch.manual_seed(seed)
+        if seed is not None:
+            torch.manual_seed(seed)
 
         self.sizes = [state_dim] + list(hidden_sizes) + [n_actions]
         self.probs = mlp(self.sizes, activation, nn.Softmax(dim=-1))
@@ -83,11 +84,12 @@ class GaussianPolicy(StochasticPolicy):
 class GaussianPolicyConstantCov(GaussianPolicy):
     '''Gaussian Policy with constant covariance matrix
     '''
-    def __init__(self, state_dim, action_dim, hidden_sizes, activation, std, seed=0):
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation, std, seed=None):
         super().__init__()
 
         # fix seed
-        #torch.manual_seed(seed)
+        if seed is not None:
+            torch.manual_seed(seed)
 
         # mean nn
         self.sizes = [state_dim] + list(hidden_sizes) + [action_dim]
@@ -116,11 +118,12 @@ def vracer_softplus_fn(x):
 class GaussianPolicyLearntCov(GaussianPolicy):
     '''Gaussian Policy with learnt covariance matrix
     '''
-    def __init__(self, state_dim, action_dim, hidden_sizes, activation, std_init=1.0, seed=0):
+    def __init__(self, state_dim, action_dim, hidden_sizes, activation, std_init=1.0, seed=None):
         super().__init__()
 
         # fix seed
-        #torch.manual_seed(seed)
+        if seed is not None:
+            torch.manual_seed(seed)
 
         # mean nn
         sizes = [state_dim] + list(hidden_sizes)

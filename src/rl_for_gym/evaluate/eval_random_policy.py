@@ -29,10 +29,7 @@ def random_policy(env, gamma: float = 1., n_episodes: int = 100,
     for ep in np.arange(n_episodes):
 
         # reset environment
-        if ep == 0:
-            obs, info = env.reset(seed=seed)
-        else:
-            obs, info = env.reset()
+        obs, info = env.reset(seed=seed) if ep == 0 else env.reset()
 
         # reset rewards
         rewards = np.empty(0)

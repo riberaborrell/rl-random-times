@@ -12,8 +12,8 @@ def get_base_parser():
     parser.add_argument(
         '--seed',
         type=int,
-        default=1,
-        help='random seed (default: 1)',
+        default=None,
+        help='random seed (default: None)',
     )
     parser.add_argument(
         '--gamma',

@@ -8,7 +8,7 @@ import torch.optim as optim
 
 from rl_for_gym.spg.models import CategoricalPolicy, GaussianPolicyLearntCov
 from rl_for_gym.utils.base_parser import get_base_parser
-from rl_for_gym.utils.numeric import normalize_array
+from rl_for_gym.utils.numeric import discounted_cumsum_list, normalize_array
 from rl_for_gym.utils.path import load_data, save_data, get_reinforce_simple_dir_path
 from rl_for_gym.utils.plots import plot_y_per_episode
 
@@ -54,10 +54,13 @@ class ReinforceStochastic:
         self.d_hidden_layer = d_hidden_layer
         hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
         if self.is_action_continuous:
-            self.policy = GaussianPolicyLearntCov(state_dim, action_dim, hidden_sizes,
-                                                  activation=nn.Tanh(), std_init=policy_noise)
+            self.policy = GaussianPolicyLearntCov(
+                state_dim, action_dim, hidden_sizes, activation=nn.Tanh(),
+                std_init=policy_noise, seed=seed,
+            )
         else:
-            self.policy = CategoricalPolicy(state_dim, n_actions, hidden_sizes, activation=nn.Tanh())
+            self.policy = CategoricalPolicy(state_dim, n_actions, hidden_sizes,
+                                            activation=nn.Tanh(), seed=seed)
 
         # sgd
         self.optim_type = optim_type
@@ -76,18 +79,20 @@ class ReinforceStochastic:
         self.seed = seed
 
     def update_policy(self, rewards, log_probs):
-        discounted_rewards = []
-        G = 0
-        for r in reversed(rewards):
-            G = r + self.gamma * G
-            discounted_rewards.insert(0, G)
-        discounted_rewards = torch.tensor(discounted_rewards, dtype=torch.float32)
-        discounted_rewards = normalize_array(discounted_rewards, eps=1e-5)
-        loss = []
-        for log_prob, Gt in zip(log_probs, discounted_rewards):
-            loss.append(-log_prob * Gt)
+
+        # compute discounted returns
+        returns = discounted_cumsum_list(rewards, self.gamma)
+        returns = torch.tensor(returns, dtype=torch.float32)
+        returns = normalize_array(returns, eps=1e-5)
+
+        # compute loss
+        #loss = []
+        #for log_prob, Gt in zip(log_probs, n_returns):
+        #    loss.append(-log_prob * Gt)
+        #loss = torch.hstack(loss).sum()
+        loss = (-torch.hstack(log_probs) * returns).sum()
+
         self.optimizer.zero_grad()
-        loss = torch.hstack(loss).sum()
         loss.backward()
         self.optimizer.step()
 
@@ -108,7 +113,7 @@ class ReinforceStochastic:
         losses = np.empty(self.n_episodes)
 
         for ep in np.arange(self.n_episodes):
-            state, _ = self.env.reset()
+            state, _ = self.env.reset(seed=self.seed) if ep == 0 else self.env.reset()
             log_probs, rewards = [], []
             done = False
             while not done:
