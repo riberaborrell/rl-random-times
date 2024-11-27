@@ -154,9 +154,27 @@ class ReinforceStochastic:
         data = {
             'returns': returns,
             'time_steps': time_steps,
+            'losses': losses,
         }
         save_data(data, dir_path)
         return True, data
+
+def get_stats_multiple_datas(datas):
+
+    # get number of episodes
+    n_episodes = datas[0]['returns'].shape[0]
+
+    # preallocate arrays
+    array_shape = (len(datas), n_episodes)
+    returns = np.empty(array_shape)
+    time_steps = np.empty(array_shape)
+
+    # load evaluation
+    for i, data in enumerate(datas):
+        returns[i] = data['returns']
+        time_steps[i] = data['time_steps']
+
+    return returns, time_steps
 
 def main():
     args = get_base_parser().parse_args()
@@ -193,6 +211,7 @@ def main():
     x = np.arange(args.n_episodes)
     plot_y_per_episode(x, data['returns'], run_window=100, title='Returns', legend=True)
     plot_y_per_episode(x, data['time_steps'], run_window=100, title='Time steps')
+    plot_y_per_episode(x, data['losses'], run_window=100, title='Losses')
 
 
 if __name__ == '__main__':

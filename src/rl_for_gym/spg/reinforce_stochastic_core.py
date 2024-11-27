@@ -20,7 +20,8 @@ class ReinforceStochastic:
 
         if isinstance(env.action_space, gym.spaces.Box):
             self.is_action_continuous = True
-        elif isinstance(env.action_space, gym.spaces.Discrete) or isinstance(env.action_space, gym.spaces.MultiDiscrete):
+        elif isinstance(env.action_space, gym.spaces.Discrete) or \
+             isinstance(env.action_space, gym.spaces.MultiDiscrete):
             self.is_action_continuous = False
         else:
             raise ValueError('Action space must be either continuous or discrete.')
@@ -58,13 +59,18 @@ class ReinforceStochastic:
         # initialize policy model
         hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
         if self.is_action_continuous and policy_type == 'const-cov':
-            self.policy = GaussianPolicyConstantCov(self.state_dim, self.action_dim, hidden_sizes,
-                                                    activation=nn.Tanh(), std=self.policy_noise)
+            self.policy = GaussianPolicyConstantCov(
+                self.state_dim, self.action_dim, hidden_sizes,
+                activation=nn.Tanh(), std=self.policy_noise, seed=seed,
+            )
         elif self.is_action_continuous and policy_type == 'learnt-cov':
-            self.policy = GaussianPolicyLearntCov(self.state_dim, self.action_dim, hidden_sizes,
-                                                  activation=nn.Tanh(), std_init=self.policy_noise)
+            self.policy = GaussianPolicyLearntCov(
+                self.state_dim, self.action_dim, hidden_sizes,
+                activation=nn.Tanh(), std_init=self.policy_noise, seed=seed,
+            )
         else:
-            self.policy = CategoricalPolicy(self.state_dim, self.n_actions, hidden_sizes, activation=nn.Tanh())
+            self.policy = CategoricalPolicy(self.state_dim, self.n_actions, hidden_sizes,
+                                            activation=nn.Tanh(), seed=seed)
 
         # stochastic gradient descent
         self.batch_size = batch_size
@@ -85,23 +91,22 @@ class ReinforceStochastic:
         self.seed = seed
 
         # on-policy expectation
-        self.estimate_z = estimate_z
-        self.mini_batch_size = mini_batch_size
-        self.mini_batch_size_type = mini_batch_size_type
-        self.memory_size = memory_size
-
+        if expectation_type == 'on-policy':
+            self.estimate_z = estimate_z
+            self.mini_batch_size = mini_batch_size
+            self.mini_batch_size_type = mini_batch_size_type
+            self.memory_size = memory_size
 
     def sample_trajectories(self):
 
         # preallocate arrays
-        returns = np.zeros(self.batch_size, dtype=np.float32)
+        initial_returns = np.zeros(self.batch_size, dtype=np.float32)
         time_steps = np.empty(self.batch_size, dtype=np.int32)
 
         # preallocate lists to store states, actions and rewards
         states, actions, rewards = [], [], []
 
         # reset environment
-        #state, _ = self.env.reset(seed=self.seed, options={'batch_size': self.batch_size})
         state, _ = self.env.reset()
 
         # terminated and done flags
@@ -116,6 +121,10 @@ class ReinforceStochastic:
             state_torch = torch.FloatTensor(state)
             action, _ = self.policy.sample_action(state_torch)
 
+            # save state and action
+            states.append(state)
+            actions.append(action)
+
             # step dynamics forward
             state, r, terminated, truncated, _ = self.env.step(action)
 
@@ -126,9 +135,7 @@ class ReinforceStochastic:
             # done flags
             done = np.logical_or(been_terminated, truncated)
 
-            # save state, action and reward
-            states.append(state)
-            actions.append(action)
+            # save reward
             rewards.append(r)
 
             # save time steps
@@ -151,18 +158,20 @@ class ReinforceStochastic:
             trajs_states.append(np.stack(states)[:idx, i])
             trajs_actions.append(np.stack(actions)[:idx, i])
             trajs_rewards.append(np.stack(rewards)[:idx, i])
-            returns[i] = np.sum(trajs_rewards[i])
+            initial_returns[i] = np.sum(trajs_rewards[i])
 
             # compute initial returns
             if self.return_type == 'initial-return':
-                trajs_returns.append(np.full(time_steps[i], returns[i]))
+                trajs_returns.append(np.full(time_steps[i], initial_returns[i]))
 
             # compute n-step returns
             else: # return_type == 'n-return'
                 trajs_returns.append(cumsum(trajs_rewards[i]))
 
         trajs_actions = np.vstack(trajs_actions) if self.is_action_continuous else np.hstack(trajs_actions)
-        return np.vstack(trajs_states), trajs_actions, np.hstack(trajs_returns), returns, time_steps
+        return np.vstack(trajs_states), trajs_actions, \
+               np.hstack(trajs_returns), initial_returns, time_steps
+
 
     def sample_loss_random_time(self):
         ''' Sample and compute loss function corresponding to the policy gradient with
@@ -170,21 +179,21 @@ class ReinforceStochastic:
         '''
 
         # sample trajectories
-        states, actions, n_returns, returns, time_steps = self.sample_trajectories()
-
-        # normalize n-returns
-        n_returns = normalize_array(n_returns, eps=1e-5)
+        states, actions, returns, initial_returns, time_steps = self.sample_trajectories()
 
         # convert to torch tensors
         states = torch.FloatTensor(states)
         actions = torch.FloatTensor(actions)
-        n_returns = torch.FloatTensor(n_returns)
+        returns = torch.FloatTensor(returns)
+
+        # normalize returns
+        returns = normalize_array(returns, eps=1e-5)
 
         # compute log probs
         _, log_probs = self.policy.forward(states, actions)
 
         # calculate loss
-        phi = - log_probs * n_returns
+        phi = - log_probs * returns
 
         # loss and loss variance
         loss = phi.sum() / self.batch_size
@@ -195,17 +204,12 @@ class ReinforceStochastic:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-
-        return loss, loss_var, returns, time_steps
-
+        return loss.detach().numpy(), loss_var, initial_returns, time_steps
 
     def sample_loss_on_policy(self):
 
         # sample trajectories
-        states, actions, n_returns, returns, time_steps = self.sample_trajectories()
-
-        # normalize n-returns
-        #n_returns = normalize_array(n_returns, eps=1e-5)
+        states, actions, returns, initial_returns, time_steps = self.sample_trajectories()
 
         # initialize memory
         if  self.is_action_continuous:
@@ -222,7 +226,7 @@ class ReinforceStochastic:
             )
 
         # store experiences in memory
-        memory.store_vectorized(states, actions, returns=n_returns)
+        memory.store_vectorized(states, actions, returns=returns)
 
         # sample batch of experiences from memory
         if self.mini_batch_size_type == 'adaptive':
@@ -235,12 +239,12 @@ class ReinforceStochastic:
         # estimate mean trajectory length
         mean_length = time_steps.mean() if self.estimate_z else 1
 
-        # normalize n-returns
-        n_returns = batch['returns']
-        n_returns = normalize_array(n_returns, eps=1e-5)
+        # normalize returns
+        returns = batch['returns']
+        returns = normalize_array(returns, eps=1e-5)
 
         # calculate loss
-        phi = - (log_probs * n_returns)
+        phi = - (log_probs * returns)
         loss = phi.mean()
         with torch.no_grad():
             loss_var = phi.var().numpy()
@@ -258,7 +262,7 @@ class ReinforceStochastic:
         # re-scale learning rate back
         self.optimizer.param_groups[0]['lr'] /= mean_length
 
-        return loss, loss_var, returns, time_steps
+        return loss, loss_var, initial_returns, time_steps
 
     def run_reinforce(self, backup_freq=None, live_plot_freq=None, log_freq=100, load=False):
 
@@ -269,40 +273,9 @@ class ReinforceStochastic:
         if load:
             return load_data(dir_path)
 
-        # set seed
-        if self.seed is not None:
-            torch.manual_seed(self.seed)
-            np.random.seed(self.seed)
-
-        # save states, action and rewards
-        #if return_type == 'n-return':
-        #    env = SaveEpisodeTrajectoryVect(env, batch_size, track_rewards=True)
-
-        # save states and actions 
-        #else: #return_type == 'initial-return':
-        #    env = SaveEpisodeTrajectoryVect(env, batch_size)
-
-
         # save algorithm parameters
-        data = {
-        }
-        """
-            'gamma': gamma,
-            'n_layers': n_layers,
-            'd_hidden_layer': d_hidden_layer,
-            'policy_type': policy_type,
-            'policy_noise': policy_noise,
-            'batch_size' : batch_size,
-            'mini_batch_size' : mini_batch_size,
-            'lr' : lr,
-            'optim_type': optim_type,
-            'n_grad_iterations': n_grad_iterations,
-            'seed': seed,
-            'backup_freq': backup_freq,
-            'policy': policy,
-            'dir_path': dir_path,
-        }
-        """
+        excluded = ['env', 'policy', 'optimizer']
+        data = {key: value for key, value in vars(self).items() if key not in excluded}
         save_data(data, dir_path)
 
         # create object to store the is statistics of the learning
@@ -325,9 +298,9 @@ class ReinforceStochastic:
         # save model initial parameters
         save_model(self.policy, dir_path, 'policy_n-it{}'.format(0))
 
-        if live_plot_freq and env.d == 1:
-            mean, sigma = evaluate_stoch_policy_model(env, policy)
-            lines = initialize_gaussian_policy_1d_figure(env, mean, sigma, policy_opt=policy_opt)
+        if live_plot_freq:
+            #TODO: live plot returns and time steps
+            pass
 
         for i in np.arange(self.n_grad_iterations+1):
 
@@ -344,7 +317,7 @@ class ReinforceStochastic:
             ct_final = time.time()
 
             # save and log epoch 
-            stats.save_epoch(i, returns, time_steps, loss=loss.detach().numpy(),
+            stats.save_epoch(i, returns, time_steps, loss=loss,
                              loss_var=loss_var, ct=ct_final - ct_initial)
             stats.log_epoch(i) if i % log_freq == 0 else None
 
@@ -355,11 +328,11 @@ class ReinforceStochastic:
                 save_data(data | stats_dict, dir_path)
 
             # update plots
-            if live_plot_freq and env.d == 1 and i % live_plot_freq == 0:
-                mean, sigma = evaluate_stoch_policy_model(env, policy)
-                update_gaussian_policy_1d_figure(env, mean, sigma, lines)
+            if live_plot_freq and i % live_plot_freq == 0:
+                #TODO: live plot returns and time steps
+                pass
 
-        stats_dict = {key: stats.__dict__[key] for key in keys_chosen}
+        stats_dict = {key: value for key, value in vars(stats).items() if key in keys_chosen}
         data = data | stats_dict
         save_data(data, dir_path)
         return True, data

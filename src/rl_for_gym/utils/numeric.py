@@ -3,7 +3,7 @@ from typing import Optional, Union
 import numpy as np
 import torch
 
-def compute_running_mean(x: np.array, run_window: Optional[int] = 10):
+def compute_running_mean(x: np.array, run_window: Optional[int] = 10) -> np.array:
     ''' running mean / moving average of the array along the given running window.
     '''
     return np.array([
@@ -11,7 +11,7 @@ def compute_running_mean(x: np.array, run_window: Optional[int] = 10):
         else np.mean(x[:i+1]) for i in range(len(x))
     ])
 
-def compute_running_variance(array: np.array, run_window: Optional[int] = 10):
+def compute_running_variance(array: np.array, run_window: Optional[int] = 10) -> np.array:
     ''' running variance of the array along the given running window.
     '''
     return np.array([
@@ -22,6 +22,14 @@ def compute_running_variance(array: np.array, run_window: Optional[int] = 10):
 
 def cumsum_numpy(x):
     return x[::-1].cumsum()[::-1]
+
+def discounted_cumsum_list(x: list, gamma: float) -> list:
+    discounted_cumsum = []
+    discounted_sum = 0
+    for el in reversed(x):
+        discounted_sum = el + gamma * discounted_sum
+        discounted_cumsum.insert(0, discounted_sum)
+    return discounted_cumsum
 
 def discount_cumsum(x, gamma):
     n = len(x)
