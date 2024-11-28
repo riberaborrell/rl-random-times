@@ -190,7 +190,7 @@ class ReinforceStochastic:
         returns = normalize_array(returns, eps=1e-5)
 
         # compute log probs
-        _, log_probs = self.policy.forward(states, actions)
+        _, log_probs = self.policy(states, actions)
 
         # calculate loss
         phi = - log_probs * returns
