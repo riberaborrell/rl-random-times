@@ -156,7 +156,7 @@ def get_reinforce_stoch_discrete_dir_path(**kwargs):
     '''
 
     # set parameters string
-    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env'].spec.config.max_episode_steps) \
+    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['n_steps_lim']) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + '{}_'.format(kwargs['return_type']) \
@@ -173,7 +173,7 @@ def get_reinforce_stoch_cont_dir_path(**kwargs):
     '''
 
     # set parameters string
-    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env'].spec.config.max_episode_steps) \
+    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['n_steps_lim']) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + 'policy-{}_'.format(kwargs['policy_type']) \

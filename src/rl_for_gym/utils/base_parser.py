@@ -178,6 +178,11 @@ def get_base_parser():
         help='Set number of Envpool environments. Default: None',
     )
     parser.add_argument(
+        '--envpool',
+        action='store_true',
+        help='Set envpool flag. Default: False',
+    )
+    parser.add_argument(
         '--vect-mode',
         type=str,
         default=None,

@@ -14,7 +14,9 @@ def main():
     args = get_base_parser().parse_args()
 
     # create gym env 
-    if args.n_steps_lim is None:
+    if not args.envpool:
+        env = gym.make(args.env_id, max_episode_steps=args.n_steps_lim, is_vectorized=True)
+    elif args.n_steps_lim is None:
         env = envpool.make_gymnasium(args.env_id, num_envs=args.batch_size, seed=args.seed)
     else:
         env = envpool.make_gymnasium(args.env_id, num_envs=args.batch_size,
@@ -22,7 +24,7 @@ def main():
 
     # reinforce stochastic agent
     agent = ReinforceStochastic(
-        env, args.env_id, args.expectation_type, args.return_type, args.gamma,
+        env, args.env_id, args.n_steps_lim, args.expectation_type, args.return_type, args.gamma,
         args.n_layers, args.d_hidden, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
         args.gaussian_policy_type, args.policy_noise, args.estimate_z,
         args.mini_batch_size, args.mini_batch_size_type,
