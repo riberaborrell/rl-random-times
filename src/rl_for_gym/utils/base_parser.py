@@ -28,6 +28,12 @@ def get_base_parser():
         help='Set learning rate. Default: 0.01',
     )
     parser.add_argument(
+        '--lr-decay',
+        type=float,
+        default=1.,
+        help='Set weight decay for the learning rate. Default: 1.',
+    )
+    parser.add_argument(
         '--constant-lr',
         action='store_true',
         help='the step size / learning rate parameter is constant.',

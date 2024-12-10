@@ -14,7 +14,7 @@ from rl_for_gym.utils.path import load_data, save_data, save_model, load_model, 
 
 class ReinforceStochastic:
     def __init__(self, env, env_id, n_steps_lim, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
-                 batch_size, lr, n_grad_iterations, seed, policy_type=None, policy_noise=None,
+                 batch_size, lr, lr_decay, n_grad_iterations, seed, policy_type=None, policy_noise=None,
                  estimate_z=None, mini_batch_size=None, mini_batch_size_type='constant',
                  memory_size=int(1e6), optim_type='adam'):
 
@@ -76,6 +76,7 @@ class ReinforceStochastic:
         # stochastic gradient descent
         self.batch_size = batch_size
         self.lr = lr
+        self.lr_decay = lr_decay
         self.n_grad_iterations = n_grad_iterations
 
         # optimizer
@@ -87,6 +88,8 @@ class ReinforceStochastic:
         else:
             raise ValueError('The optimizer {optim} is not implemented')
 
+        # scheduler
+        self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=lr_decay)
 
         # seed
         self.seed = seed
@@ -212,6 +215,7 @@ class ReinforceStochastic:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+        self.scheduler.step()
         return loss.detach().numpy(), loss_var, initial_returns, time_steps
 
     def sample_loss_on_policy(self):
