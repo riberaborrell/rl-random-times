@@ -88,9 +88,10 @@ def get_z_estimation_str(**kwargs):
 
 def get_lr_and_batch_size_str(**kwargs):
     string = ''
+    string += 'scheduled-lr_' if 'scheduled_lr' in kwargs.keys() and kwargs['scheduled_lr'] else ''
     string += 'lr{:.1e}_'.format(kwargs['lr']) if 'lr' in kwargs.keys() else ''
-    string += 'lr-decay{:.5f}_'.format(kwargs['lr_decay']) if 'lr_decay' in kwargs.keys() else ''
-    string += 'lr-init{:.1e}_'.format(kwargs['lr_init']) if 'lr_init' in kwargs.keys() else ''
+    #string += 'lr-decay{:.5f}_'.format(kwargs['lr_decay']) if 'lr_decay' in kwargs.keys() else ''
+    string += 'lr-final{:.1e}_'.format(kwargs['lr_final']) if 'lr_final' in kwargs.keys() and kwargs['lr_final'] is not None else ''
     string += 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) if 'lr_actor' in kwargs.keys() else ''
     string += 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) if 'lr_critic' in kwargs.keys() else ''
     string += 'K{:d}_'.format(int(kwargs['batch_size'])) if 'batch_size' in kwargs.keys() else ''

@@ -1,3 +1,4 @@
+import functools
 import time
 
 import gymnasium as gym
@@ -9,14 +10,15 @@ import torch.optim as optim
 from rl_for_gym.spg.models import CategoricalPolicy, GaussianPolicyConstantCov, GaussianPolicyLearntCov
 from rl_for_gym.spg.replay_memories import ReplayMemoryReturn as Memory
 from rl_for_gym.utils.statistics import Statistics
+from rl_for_gym.utils.schedulers import simple_lr_schedule, two_phase_lr_schedule, three_phase_lr_schedule
 from rl_for_gym.utils.numeric import cumsum_numpy as cumsum, normalize_array
 from rl_for_gym.utils.path import load_data, save_data, save_model, load_model, get_reinforce_stoch_dir_path
 
 class ReinforceStochastic:
     def __init__(self, env, env_id, n_steps_lim, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
-                 batch_size, lr, lr_decay, n_grad_iterations, seed, policy_type=None, policy_noise=None,
+                 batch_size, lr, n_grad_iterations, seed, policy_type=None, policy_noise=None,
                  estimate_z=None, mini_batch_size=None, mini_batch_size_type='constant',
-                 memory_size=int(1e6), optim_type='adam'):
+                 memory_size=int(1e6), optim_type='adam', scheduled_lr=False, lr_final=None):
 
         if isinstance(env.action_space, gym.spaces.Box):
             self.is_action_continuous = True
@@ -76,7 +78,8 @@ class ReinforceStochastic:
         # stochastic gradient descent
         self.batch_size = batch_size
         self.lr = lr
-        self.lr_decay = lr_decay
+        #self.lr_decay = lr_decay
+        self.lr_final = lr_final
         self.n_grad_iterations = n_grad_iterations
 
         # optimizer
@@ -89,7 +92,14 @@ class ReinforceStochastic:
             raise ValueError('The optimizer {optim} is not implemented')
 
         # scheduler
-        self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=lr_decay)
+        self.scheduled_lr = scheduled_lr
+        if scheduled_lr:
+            lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
+                                            lr_final=lr_final, n_iter=n_grad_iterations+1)
+            self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_schedule)
+            #self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=lr_decay)
+        else:
+            self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda it: 1)
 
         # seed
         self.seed = seed
@@ -286,7 +296,7 @@ class ReinforceStochastic:
             return load_data(dir_path)
 
         # save algorithm parameters
-        excluded = ['env', 'policy', 'optimizer']
+        excluded = ['env', 'policy', 'optimizer', 'scheduler']
         data = {key: value for key, value in vars(self).items() if key not in excluded}
         save_data(data, dir_path)
 
@@ -299,12 +309,13 @@ class ReinforceStochastic:
             policy_type='stoch',
             track_loss=True,
             track_ct=True,
+            track_lr=True if self.scheduled_lr else False,
         )
         keys_chosen = [
             'mean_lengths', 'var_lengths', 'max_lengths',
             'mean_returns', 'var_returns',
             'losses', 'loss_vars',
-            'cts',
+            'cts', 'lrs',
         ]
 
         # save model initial parameters
@@ -329,13 +340,18 @@ class ReinforceStochastic:
             ct_final = time.time()
 
             # save and log epoch 
+            lr = self.scheduler.get_last_lr()[0] if self.scheduled_lr else None
+            track_lr=True if self.scheduled_lr else False,
             stats.save_epoch(i, returns, time_steps, loss=loss,
-                             loss_var=loss_var, ct=ct_final - ct_initial)
+                             loss_var=loss_var, ct=ct_final - ct_initial, lr=lr)
             stats.log_epoch(i) if i % log_freq == 0 else None
 
-            # backup models and results
+            # backup models
             if backup_freq and (i + 1) % backup_freq== 0:
                 save_model(self.policy, dir_path, 'policy_n-it{}'.format(i + 1))
+
+            # backup statistics
+            if (i + 1) % 100 == 0:
                 stats_dict = {key: stats.__dict__[key] for key in keys_chosen}
                 save_data(data | stats_dict, dir_path)
 

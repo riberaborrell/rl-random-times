@@ -25,10 +25,10 @@ def main():
     # reinforce stochastic agent
     agent = ReinforceStochastic(
         env, args.env_id, args.n_steps_lim, args.expectation_type, args.return_type, args.gamma,
-        args.n_layers, args.d_hidden, args.batch_size, args.lr, args.lr_decay, args.n_grad_iterations, args.seed,
+        args.n_layers, args.d_hidden, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
         args.gaussian_policy_type, args.policy_noise, args.estimate_z,
         args.mini_batch_size, args.mini_batch_size_type,
-        args.replay_size, args.optim_type,
+        args.replay_size, args.optim_type, args.scheduled_lr, args.lr_final,
     )
 
     # run reinforce with random time horizon 
@@ -46,9 +46,10 @@ def main():
 
     # plot returns and time steps
     x = np.arange(args.n_grad_iterations + 1)
-    plot_y_per_grad_iteration(x, data['mean_returns'], run_window=10, title='Mean return', legend=True)
-    plot_y_per_grad_iteration(x, data['mean_lengths'], run_window=10, title='Mean time steps')
-    plot_y_per_grad_iteration(x, data['losses'], run_window=100, title='Losses')
+    plot_y_per_grad_iteration(x, data['mean_returns'], title='Mean return', run_window=10, legend=True)
+    plot_y_per_grad_iteration(x, data['mean_lengths'], title='Mean time steps', run_window=10)
+    plot_y_per_grad_iteration(x, data['losses'], title='Losses', run_window=100)
+    plot_y_per_grad_iteration(x, data['lrs'], title='Learning rates', plot_scale='semilogy', run_window=1)
 
 if __name__ == '__main__':
     main()

@@ -24,19 +24,30 @@ def get_base_parser():
     parser.add_argument(
         '--lr',
         type=float,
-        default=0.01,
+        default=1e-2,
         help='Set learning rate. Default: 0.01',
+    )
+    parser.add_argument(
+        '--constant-lr',
+        action='store_true',
+        help='the step size / learning rate parameter is constant.',
+    )
+    parser.add_argument(
+        '--scheduled-lr',
+        action='store_true',
+        help='the step size / learning rate parameter is custom scheduled.',
+    )
+    parser.add_argument(
+        '--lr-final',
+        type=float,
+        default=1e-2,
+        help='Set final learning rate. Default: 0.01',
     )
     parser.add_argument(
         '--lr-decay',
         type=float,
         default=1.,
         help='Set weight decay for the learning rate. Default: 1.',
-    )
-    parser.add_argument(
-        '--constant-lr',
-        action='store_true',
-        help='the step size / learning rate parameter is constant.',
     )
     parser.add_argument(
         '--lam',

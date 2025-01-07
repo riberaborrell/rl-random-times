@@ -124,7 +124,7 @@ def plot_y_avg_per_ct(x, ys, **kwargs):
     plot_y_avg_per_x(x, ys, xlabel='CT(s)', **kwargs)
 
 def plot_lr_grid_search(lrs, ys, title='', plot_scale='loglog', xlim=None, ylim=None, colors=None,
-                        labels=None, ls='-', file_path=None):
+                        labels=None, ls='-', sign=1, file_path=None):
     n_seeds = ys[0].shape[0]
     fig, ax = plt.subplots()
     plot_fn = get_plot_function(ax, plot_scale)
@@ -134,9 +134,9 @@ def plot_lr_grid_search(lrs, ys, title='', plot_scale='loglog', xlim=None, ylim=
     for i in range(len(lrs)):
         for j in range(n_seeds):
             if labels is not None:
-                plot_fn(lrs[i], ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8, label=labels[i][j])
+                plot_fn(lrs[i], sign*ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8, label=labels[i][j])
             else:
-                plot_fn(lrs[i], ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8)
+                plot_fn(lrs[i], sign*ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8)
     if labels is not None:
         ax.legend()
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()

@@ -18,7 +18,7 @@ def compute_std_and_re(mean: float, var: float):
 class Statistics(object):
 
     def __init__(self, eval_freq, eval_batch_size, n_iterations, policy_type='det', iter_str='it.:',
-                 track_loss=False, track_ct=False):
+                 track_loss=False, track_ct=False, track_lr=False):
 
         assert policy_type in ['det', 'stoch', 'stoch-mean'], 'Policy type not recognized'
         self.policy_type = policy_type
@@ -35,6 +35,7 @@ class Statistics(object):
         # flags
         self.track_loss = track_loss
         self.track_ct = track_ct
+        self.track_lr = track_lr
 
         # steps
         self.mean_lengths = np.full(self.n_epochs, np.nan)
@@ -54,12 +55,18 @@ class Statistics(object):
         if track_ct:
             self.cts = np.full(self.n_epochs, np.nan)
 
-    def save_epoch(self, i, returns, time_steps, loss=None, loss_var=None, ct=None):
+        # learning rates
+        if track_lr:
+            self.lrs = np.full(self.n_epochs, np.nan)
+
+    def save_epoch(self, i, returns, time_steps, loss=None, loss_var=None, ct=None, lr=None):
 
         if self.track_loss:
             assert loss is not None and loss_var is not None, 'Loss is not provided'
         if self.track_ct:
             assert ct is not None, 'CT is not provided'
+        if self.track_lr:
+            assert lr is not None, 'lr is not provided'
 
         self.mean_lengths[i], self.var_lengths[i], _, _ = compute_array_statistics(time_steps)
         self.max_lengths[i] = np.max(time_steps)
@@ -69,6 +76,8 @@ class Statistics(object):
             self.loss_vars[i] = loss_var
         if self.track_ct:
             self.cts[i] = ct
+        if self.track_lr:
+            self.lrs[i] = lr
 
     def log_epoch(self, i):
         j = i * self.eval_freq
@@ -78,7 +87,9 @@ class Statistics(object):
         if self.track_loss:
             msg += 'loss: {:.3e}, '.format(self.losses[i])
         if self.track_ct:
-            msg += 'ct: {:.3e}'.format(self.cts[i])
+            msg += 'ct: {:.3e}, '.format(self.cts[i])
+        if self.track_lr:
+            msg += 'lr: {:.3e}'.format(self.lrs[i])
         print(msg)
 
     def save_stats(self, dir_path):
