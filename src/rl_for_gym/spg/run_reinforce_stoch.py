@@ -49,7 +49,8 @@ def main():
     plot_y_per_grad_iteration(x, data['mean_returns'], title='Mean return', run_window=10, legend=True)
     plot_y_per_grad_iteration(x, data['mean_lengths'], title='Mean time steps', run_window=10)
     plot_y_per_grad_iteration(x, data['losses'], title='Losses', run_window=100)
-    plot_y_per_grad_iteration(x, data['lrs'], title='Learning rates', plot_scale='semilogy', run_window=1)
+    if args.scheduled_lr:
+        plot_y_per_grad_iteration(x, data['lrs'], title='Learning rates', plot_scale='semilogy', run_window=1)
 
 if __name__ == '__main__':
     main()

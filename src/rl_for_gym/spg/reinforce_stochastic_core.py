@@ -315,8 +315,9 @@ class ReinforceStochastic:
             'mean_lengths', 'var_lengths', 'max_lengths',
             'mean_returns', 'var_returns',
             'losses', 'loss_vars',
-            'cts', 'lrs',
+            'cts',
         ]
+        keys_chosen += ['lrs'] if self.scheduled_lr else []
 
         # save model initial parameters
         save_model(self.policy, dir_path, 'policy_n-it{}'.format(0))

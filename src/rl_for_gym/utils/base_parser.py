@@ -40,8 +40,8 @@ def get_base_parser():
     parser.add_argument(
         '--lr-final',
         type=float,
-        default=1e-2,
-        help='Set final learning rate. Default: 0.01',
+        default=None,
+        help='Set final learning rate. Default: None',
     )
     parser.add_argument(
         '--lr-decay',
@@ -214,8 +214,8 @@ def get_base_parser():
     parser.add_argument(
         '--log-freq',
         type=int,
-        default=10,
-        help='interval between training status logs (default: 10)',
+        default=100,
+        help='interval between training status logs (default: 100)',
     )
     parser.add_argument(
         '--load',
