@@ -10,7 +10,7 @@ import torch.optim as optim
 from rl_for_gym.spg.models import CategoricalPolicy, GaussianPolicyConstantCov, GaussianPolicyLearntCov
 from rl_for_gym.spg.replay_memories import ReplayMemoryReturn as Memory
 from rl_for_gym.utils.statistics import Statistics
-from rl_for_gym.utils.schedulers import simple_lr_schedule, two_phase_lr_schedule, three_phase_lr_schedule
+from rl_for_gym.utils.schedulers import simple_lr_schedule
 from rl_for_gym.utils.numeric import cumsum_numpy as cumsum, normalize_array
 from rl_for_gym.utils.path import load_data, save_data, save_model, load_model, get_reinforce_stoch_dir_path
 
@@ -194,7 +194,7 @@ class ReinforceStochastic:
                np.hstack(trajs_returns), initial_returns, time_steps
 
 
-    def sample_loss_random_time(self):
+    def sample_loss_random_time(self, it):
         ''' Sample and compute loss function corresponding to the policy gradient with
             random time expectation. Also update the policy parameters.
         '''
@@ -221,14 +221,18 @@ class ReinforceStochastic:
         with torch.no_grad():
             loss_var = phi.var().numpy()
 
+        # get actual learning rate
+        self.live_lr = self.optimizer.param_groups[0]['lr'] if it != 0 else self.lr
+
         # reset gradients, compute gradients and update parameters
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
         self.scheduler.step()
+
         return loss.detach().numpy(), loss_var, initial_returns, time_steps
 
-    def sample_loss_on_policy(self):
+    def sample_loss_on_policy(self, it):
 
         # sample trajectories
         states, actions, returns, initial_returns, time_steps = self.sample_trajectories()
@@ -276,13 +280,24 @@ class ReinforceStochastic:
         loss.backward()
 
         # scale learning rate
-        self.optimizer.param_groups[0]['lr'] *= mean_length
+        if it != 0:
+            self.live_lr = self.optimizer.param_groups[0]['lr']
+            self.optimizer.param_groups[0]['lr'] *= mean_length
+        else:
+            self.optimizer.param_groups[0]['initial_lr'] *= mean_length
+            self.live_lr = self.lr
 
         #update parameters
         self.optimizer.step()
 
         # re-scale learning rate back
-        self.optimizer.param_groups[0]['lr'] /= mean_length
+        if it != 0:
+            self.optimizer.param_groups[0]['lr'] /= mean_length
+        else:
+            self.optimizer.param_groups[0]['initial_lr'] /= mean_length
+
+        # update learning rate
+        self.scheduler.step()
 
         return loss, loss_var, initial_returns, time_steps
 
@@ -296,7 +311,7 @@ class ReinforceStochastic:
             return load_data(dir_path)
 
         # save algorithm parameters
-        excluded = ['env', 'policy', 'optimizer', 'scheduler']
+        excluded = ['env', 'policy', 'optimizer', 'scheduler', 'live_lr']
         data = {key: value for key, value in vars(self).items() if key not in excluded}
         save_data(data, dir_path)
 
@@ -333,15 +348,15 @@ class ReinforceStochastic:
 
             # sample loss function
             if self.expectation_type == 'random-time':
-                loss, loss_var, returns, time_steps = self.sample_loss_random_time()
+                loss, loss_var, returns, time_steps = self.sample_loss_random_time(i)
             else: #expectation_type == 'on-policy':
-                loss, loss_var, returns, time_steps = self.sample_loss_on_policy()
+                loss, loss_var, returns, time_steps = self.sample_loss_on_policy(i)
 
             # end timer
             ct_final = time.time()
 
             # save and log epoch 
-            lr = self.scheduler.get_last_lr()[0] if self.scheduled_lr else None
+            lr = self.live_lr if self.scheduled_lr else None
             track_lr=True if self.scheduled_lr else False,
             stats.save_epoch(i, returns, time_steps, loss=loss,
                              loss_var=loss_var, ct=ct_final - ct_initial, lr=lr)
@@ -388,6 +403,3 @@ class ReinforceStochastic:
         return means, stds
         if expectation_type == 'on-policy' and mini_batch_size is None:
             raise ValueError('The mini_batch_size must be provided when using on-policy')
-
-
-
