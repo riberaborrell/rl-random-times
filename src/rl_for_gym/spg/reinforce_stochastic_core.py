@@ -98,12 +98,12 @@ class ReinforceStochastic:
         # scheduler
         self.scheduled_lr = scheduled_lr
         if scheduled_lr:
-            #self.lr_decay = lr_decay
             self.lr_final = lr_final
+            #self.lr_decay = lr_decay
             lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
                                             lr_final=lr_final, n_iter=n_grad_iterations+1)
-            #self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_schedule)
-            self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=lr_final)
+            self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_schedule)
+            #self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=lr_final)
         else:
             self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda it: 1)
 
