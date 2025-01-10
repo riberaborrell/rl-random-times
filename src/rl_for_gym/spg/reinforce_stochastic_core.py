@@ -1,4 +1,5 @@
 import functools
+import random
 import time
 
 import gymnasium as gym
@@ -15,10 +16,11 @@ from rl_for_gym.utils.numeric import cumsum_numpy as cumsum, normalize_array
 from rl_for_gym.utils.path import load_data, save_data, save_model, load_model, get_reinforce_stoch_dir_path
 
 class ReinforceStochastic:
-    def __init__(self, env, env_id, n_steps_lim, expectation_type, return_type, gamma, n_layers, d_hidden_layer,
-                 batch_size, lr, n_grad_iterations, seed, policy_type=None, policy_noise=None,
-                 estimate_z=None, mini_batch_size=None, mini_batch_size_type='constant',
-                 memory_size=int(1e6), optim_type='adam', scheduled_lr=False, lr_final=None):
+    def __init__(self, env, env_id, n_steps_lim, expectation_type, return_type, gamma,
+                 n_layers, d_hidden_layer, batch_size, lr, n_grad_iterations, seed,
+                 policy_type=None, policy_noise=None, estimate_z=None, batch_size_z=None,
+                 mini_batch_size=None, mini_batch_size_type='constant', optim_type='adam',
+                 scheduled_lr=False, lr_final=None):
 
         if isinstance(env.action_space, gym.spaces.Box):
             self.is_action_continuous = True
@@ -77,9 +79,11 @@ class ReinforceStochastic:
 
         # stochastic gradient descent
         self.batch_size = batch_size
+        if self.expectation_type == 'on-policy':
+            batch_size_z = batch_size if batch_size_z is None else batch_size_z
+            assert batch_size_z >= batch_size, 'The batch size z must be greater or equal to the batch size.'
+            self.batch_size_z = batch_size_z
         self.lr = lr
-        #self.lr_decay = lr_decay
-        self.lr_final = lr_final
         self.n_grad_iterations = n_grad_iterations
 
         # optimizer
@@ -94,10 +98,12 @@ class ReinforceStochastic:
         # scheduler
         self.scheduled_lr = scheduled_lr
         if scheduled_lr:
+            #self.lr_decay = lr_decay
+            self.lr_final = lr_final
             lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
                                             lr_final=lr_final, n_iter=n_grad_iterations+1)
-            self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_schedule)
-            #self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=lr_decay)
+            #self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_schedule)
+            self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=lr_final)
         else:
             self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda it: 1)
 
@@ -109,13 +115,14 @@ class ReinforceStochastic:
             self.estimate_z = estimate_z
             self.mini_batch_size = mini_batch_size
             self.mini_batch_size_type = mini_batch_size_type
-            self.memory_size = memory_size
 
     def sample_trajectories(self):
 
+        K = self.batch_size if self.expectation_type == 'random-time' else self.batch_size_z
+
         # preallocate arrays
-        initial_returns = np.zeros(self.batch_size, dtype=np.float32)
-        time_steps = np.empty(self.batch_size, dtype=np.int32)
+        initial_returns = np.zeros(K, dtype=np.float32)
+        time_steps = np.empty(K, dtype=np.int32)
 
         # preallocate lists to store states, actions and rewards
         states, actions, rewards = [], [], []
@@ -124,16 +131,19 @@ class ReinforceStochastic:
 
         # custom vectorized environment
         if hasattr(self.env.unwrapped, 'is_vectorized'):
-            state, _ = self.env.reset(seed=self.seed, options={'batch_size': self.batch_size})
+            state, _ = self.env.reset(seed=self.seed, options={'batch_size': K})
 
         # envpool env
         else:
             state, _ = self.env.reset()
 
         # terminated and done flags
-        been_terminated = np.full((self.batch_size,), False)
-        new_terminated = np.full((self.batch_size,), False)
-        done = np.full((self.batch_size,), False)
+        been_terminated = np.full((K,), False)
+        new_terminated = np.full((K,), False)
+        done = np.full((K,), False)
+
+        # sample which trajectories are going to be stored
+        idx_mem = random.sample(range(K), self.batch_size)
 
         k = 1
         while not done.all():
@@ -143,8 +153,8 @@ class ReinforceStochastic:
             action, _ = self.policy.sample_action(state_torch)
 
             # save state and action
-            states.append(state)
-            actions.append(action)
+            states.append(state[idx_mem])
+            actions.append(action[idx_mem])
 
             # step dynamics forward
             state, r, terminated, truncated, _ = self.env.step(action)
@@ -157,7 +167,10 @@ class ReinforceStochastic:
             done = np.logical_or(been_terminated, truncated)
 
             # save reward
-            rewards.append(r)
+            rewards.append(r[idx_mem])
+
+            # save initial returns
+            initial_returns[~been_terminated | new_terminated] += r[~been_terminated | new_terminated]
 
             # save time steps
             if new_terminated.any():
@@ -175,15 +188,15 @@ class ReinforceStochastic:
         trajs_states, trajs_actions, trajs_rewards, trajs_returns = [], [], [], []
 
         for i in range(self.batch_size):
-            idx = time_steps[i]
+            idx_traj = idx_mem[i]
+            idx = time_steps[idx_traj]
             trajs_states.append(np.stack(states)[:idx, i])
             trajs_actions.append(np.stack(actions)[:idx, i])
             trajs_rewards.append(np.stack(rewards)[:idx, i])
-            initial_returns[i] = np.sum(trajs_rewards[i])
 
             # compute initial returns
             if self.return_type == 'initial-return':
-                trajs_returns.append(np.full(time_steps[i], initial_returns[i]))
+                trajs_returns.append(np.full(time_steps[idx_traj], initial_returns[idx_traj]))
 
             # compute n-step returns
             else: # return_type == 'n-return'
@@ -382,21 +395,21 @@ class ReinforceStochastic:
         return True, data
 
 
-    def load_backup_model(data, i=0):
+    def load_backup_model(self, data, i=0):
         try:
-            load_model(data['policy'], data['dir_path'], file_name='policy_n-it{}'.format(i))
+            load_model(self.policy, data['dir_path'], file_name='policy_n-it{}'.format(i))
             return True
         except FileNotFoundError as e:
             print('There is no backup for grad. iteration {:d}'.format(i))
             return False
 
-    def get_means_and_stds(env, data, iterations):
+    def get_means_and_stds(self, env, data, iterations):
 
         n_iterations = len(iterations)
         means = np.empty((n_iterations, env.n_states, env.d), dtype=np.float32)
         stds = np.empty((n_iterations, env.n_states, env.d), dtype=np.float32)
         for i, it in enumerate(iterations):
-            load_backup_model(data, it)
+            load_backup_model(self, data, it)
             mean, std = evaluate_stoch_policy_model(env, data['policy'])
             means[i] = mean.reshape(env.n_states, env.d)
             stds[i] = std.reshape(env.n_states, env.d)
