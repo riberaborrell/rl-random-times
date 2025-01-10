@@ -292,22 +292,17 @@ class ReinforceStochastic:
         self.optimizer.zero_grad()
         loss.backward()
 
-        # scale learning rate
-        if it != 0:
-            self.live_lr = self.optimizer.param_groups[0]['lr']
-            self.optimizer.param_groups[0]['lr'] *= mean_length
-        else:
-            self.optimizer.param_groups[0]['initial_lr'] *= mean_length
-            self.live_lr = self.lr
+        # scale gradients before updating parameters
+        if self.estimate_z:
+            with torch.no_grad():
+                for param in self.policy.parameters():
+                    if param.grad is not None:
+                        param.grad *= mean_length
+
+        self.live_lr = self.optimizer.param_groups[0]['lr'] if it != 0 else self.lr
 
         #update parameters
         self.optimizer.step()
-
-        # re-scale learning rate back
-        if it != 0:
-            self.optimizer.param_groups[0]['lr'] /= mean_length
-        else:
-            self.optimizer.param_groups[0]['initial_lr'] /= mean_length
 
         # update learning rate
         self.scheduler.step()
