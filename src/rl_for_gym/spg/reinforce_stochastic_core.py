@@ -11,7 +11,7 @@ import torch.optim as optim
 from rl_for_gym.spg.models import CategoricalPolicy, GaussianPolicyConstantCov, GaussianPolicyLearntCov
 from rl_for_gym.spg.replay_memories import ReplayMemoryReturn as Memory
 from rl_for_gym.utils.statistics import Statistics
-from rl_for_gym.utils.schedulers import simple_lr_schedule
+from rl_for_gym.utils.schedulers import simple_lr_schedule, two_phase_lr_schedule
 from rl_for_gym.utils.numeric import cumsum_numpy as cumsum, normalize_array
 from rl_for_gym.utils.path import load_data, save_data, save_model, load_model, get_reinforce_stoch_dir_path
 
@@ -100,8 +100,10 @@ class ReinforceStochastic:
         if scheduled_lr:
             self.lr_final = lr_final
             #self.lr_decay = lr_decay
-            lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
-                                            lr_final=lr_final, n_iter=n_grad_iterations+1)
+            #lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
+            #                                lr_final=lr_final, n_iter=n_grad_iterations+1)
+            lr_schedule = functools.partial(two_phase_lr_schedule, lr_init=lr,
+                                            lr_final=lr_final, n_iter_adaptive=int(n_grad_iterations/2)+1)
             self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_schedule)
             #self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=lr_final)
         else:
