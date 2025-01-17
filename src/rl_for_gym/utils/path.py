@@ -92,9 +92,8 @@ def get_lr_and_batch_size_str(**kwargs):
     string += 'lr{:.1e}_'.format(kwargs['lr']) if 'lr' in kwargs.keys() else ''
     #string += 'lr-decay{:.5f}_'.format(kwargs['lr_decay']) if 'lr_decay' in kwargs.keys() else ''
     string += 'lr-final{:.1e}_'.format(kwargs['lr_final']) if 'lr_final' in kwargs.keys() and kwargs['lr_final'] is not None else ''
-    string += 'lr-actor{:.1e}_'.format(kwargs['lr_actor']) if 'lr_actor' in kwargs.keys() else ''
-    string += 'lr-critic{:.1e}_'.format(kwargs['lr_critic']) if 'lr_critic' in kwargs.keys() else ''
     string += 'K{:d}_'.format(int(kwargs['batch_size'])) if 'batch_size' in kwargs.keys() else ''
+    string += 'K-z{:d}_'.format(int(kwargs['batch_size_z'])) if 'batch_size_z' in kwargs.keys() else ''
 
     if 'mini_batch_size' in kwargs.keys() and kwargs['mini_batch_size'] is not None:
         if kwargs['mini_batch_size_type'] == 'constant':
@@ -123,7 +122,7 @@ def get_seed_str(**kwargs):
 
 def get_reinforce_discrete_simple_dir_path(**kwargs):
     # set parameters string
-    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env']._max_episode_steps) \
+    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env'].get_wrapper_attr('_max_episode_steps')) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + get_lr_and_batch_size_str(**kwargs) \
@@ -135,7 +134,7 @@ def get_reinforce_discrete_simple_dir_path(**kwargs):
 
 def get_reinforce_cont_simple_dir_path(**kwargs):
     # set parameters string
-    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env']._max_episode_steps) \
+    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['env'].get_wrapper_attr('_max_episode_steps')) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + 'policy-{}_'.format(kwargs['policy_type']) \
@@ -194,3 +193,4 @@ def get_reinforce_stoch_dir_path(**kwargs):
         return get_reinforce_stoch_cont_dir_path(**kwargs)
     else:
         return get_reinforce_stoch_discrete_dir_path(**kwargs)
+
