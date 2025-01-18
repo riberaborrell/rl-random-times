@@ -194,3 +194,20 @@ def get_reinforce_stoch_dir_path(**kwargs):
     else:
         return get_reinforce_stoch_discrete_dir_path(**kwargs)
 
+def get_reinforce_det_dir_path(**kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['n_steps_lim']) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + '{}_'.format(kwargs['return_type']) \
+              + get_z_estimation_str(**kwargs) \
+              + get_lr_and_batch_size_str(**kwargs) \
+              + 'optim-{}_'.format(kwargs['optim_type']) \
+              + get_iter_str(**kwargs) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
+

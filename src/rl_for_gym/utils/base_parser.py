@@ -22,15 +22,22 @@ def get_base_parser():
         help='discount factor (default: 1.)',
     )
     parser.add_argument(
+        '--n-steps-lim',
+        type=int,
+        default=None,
+        help='Set number of maximum steps for an episode. Default: None',
+    )
+    parser.add_argument(
+        '--n-episodes',
+        type=int,
+        default=1000,
+        help='Set number of episodes. Default: 1000',
+    )
+    parser.add_argument(
         '--lr',
         type=float,
         default=1e-2,
         help='Set learning rate. Default: 0.01',
-    )
-    parser.add_argument(
-        '--constant-lr',
-        action='store_true',
-        help='the step size / learning rate parameter is constant.',
     )
     parser.add_argument(
         '--scheduled-lr',
@@ -48,18 +55,6 @@ def get_base_parser():
         type=float,
         default=1.,
         help='Set weight decay for the learning rate. Default: 1.',
-    )
-    parser.add_argument(
-        '--n-steps-lim',
-        type=int,
-        default=None,
-        help='Set number of maximum steps for an episode. Default: None',
-    )
-    parser.add_argument(
-        '--n-episodes',
-        type=int,
-        default=1000,
-        help='Set number of episodes. Default: 1000',
     )
     parser.add_argument(
         '--n-grad-iterations',
@@ -183,5 +178,11 @@ def get_base_parser():
         '--render',
         action='store_true',
         help='render the environment',
+    )
+    parser.add_argument(
+        '--time-sleep',
+        type=float,
+        default=None,
+        help='sleep time between environment steps for slowing rendering',
     )
     return parser
