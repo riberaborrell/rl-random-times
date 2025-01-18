@@ -3,6 +3,17 @@ from typing import Optional, Union
 import numpy as np
 import torch
 
+# vectorized operations
+def dot_vect(a, b):
+    return (a * b).sum(axis=1)
+
+def dot_vect_torch(a, b):
+    return torch.matmul(
+        torch.unsqueeze(a, dim=1),
+        torch.unsqueeze(b, dim=2),
+    ).squeeze()
+
+
 def compute_running_mean(x: np.array, run_window: Optional[int] = 10) -> np.array:
     ''' running mean / moving average of the array along the given running window.
     '''

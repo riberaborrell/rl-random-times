@@ -31,7 +31,7 @@ class ReplayMemoryReturn(ReplayMemory):
         # update buffer arrays
         self.states[self.ptr] = state
         self.actions[self.ptr] = action
-        self.n_returns[self.ptr] = ret
+        self.returns[self.ptr] = ret
         self.update_store_idx_and_size()
 
     def store_vectorized(self, states, actions, returns):
