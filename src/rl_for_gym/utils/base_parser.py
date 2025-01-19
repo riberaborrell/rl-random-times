@@ -136,15 +136,16 @@ def get_base_parser():
         help='Set optimization routine. Default: adam',
     )
     parser.add_argument(
+        '--env-type',
+        choices=['gym', 'envpool', 'custom'],
+        default='gym',
+        help='Set type of vectorized environment. Default: gym',
+    )
+    parser.add_argument(
         '--n-envs',
         type=int,
         default=None,
         help='Set number of Envpool environments. Default: None',
-    )
-    parser.add_argument(
-        '--envpool',
-        action='store_true',
-        help='Set envpool flag. Default: False',
     )
     parser.add_argument(
         '--log-freq',

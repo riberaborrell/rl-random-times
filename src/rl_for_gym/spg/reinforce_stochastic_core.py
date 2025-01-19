@@ -42,11 +42,19 @@ class ReinforceStochastic:
         self.n_steps_lim = n_steps_lim
 
         # get state and action dimensions
-        self.state_dim = env.observation_space.shape[0]
-        if self.is_action_continuous:
-            self.action_dim = env.action_space.shape[0]
+        if 'EnvPool' in type(env).__name__ or hasattr(env.unwrapped, 'is_vectorized'):
+            self.state_dim = env.observation_space.shape[0]
+            if self.is_action_continuous:
+                self.action_dim = env.action_space.shape[0]
+            else:
+                self.n_actions = env.action_space.n
+
         else:
-            self.n_actions = env.action_space.n
+            self.state_dim = env.observation_space.shape[1]
+            if self.is_action_continuous:
+                self.action_dim = env.action_space.shape[1]
+            else:
+                self.n_actions = env.action_space.n
 
         # expectation type and return type
         self.expectation_type = expectation_type
@@ -76,6 +84,7 @@ class ReinforceStochastic:
         else:
             self.policy = CategoricalPolicy(self.state_dim, self.n_actions, hidden_sizes,
                                             activation=nn.Tanh(), seed=seed)
+
 
         # stochastic gradient descent
         self.batch_size = batch_size
@@ -135,7 +144,7 @@ class ReinforceStochastic:
         if hasattr(self.env.unwrapped, 'is_vectorized'):
             state, _ = self.env.reset(seed=self.seed, options={'batch_size': K})
 
-        # envpool env
+        # gym vect env or envpool env
         else:
             state, _ = self.env.reset()
 

@@ -1,27 +1,31 @@
 import envpool
 import gymnasium as gym
 import numpy as np
-import torch
 
 from rl_for_gym.spg.reinforce_stochastic_core import ReinforceStochastic
 from rl_for_gym.utils.base_parser import get_base_parser
-from rl_for_gym.utils.evaluate import simulate_learnt_policy_episode
 from rl_for_gym.utils.plots import plot_y_per_grad_iteration
 
 def main():
     args = get_base_parser().parse_args()
 
+    # environment parameters
+    kwargs = {}
+
+    # time horizon
+    assert args.n_steps_lim is not None, 'n_steps_lim must be set.'
+    kwargs['max_episode_steps'] = args.n_steps_lim
+
     # batch size
     K = args.batch_size if args.expectation_type == 'random-time' else args.batch_size_z
 
     # create gym env 
-    if not args.envpool:
-        env = gym.make(args.env_id, max_episode_steps=args.n_steps_lim, is_vectorized=True)
-    elif args.n_steps_lim is None:
-        env = envpool.make_gymnasium(args.env_id, num_envs=K, seed=args.seed)
-    else:
-        env = envpool.make_gymnasium(args.env_id, num_envs=K,
-                                     seed=args.seed, max_episode_steps=args.n_steps_lim)
+    if args.env_type == 'gym':
+        env = gym.make_vec(args.env_id, num_envs=K, vectorization_mode="sync", **kwargs)
+    elif args.env_type == 'envpool':
+        env = envpool.make_gymnasium(args.env_id, num_envs=K, seed=args.seed, **kwargs)
+    else: # custom vectorized
+        env = gym.make(args.env_id, is_vectorized=True, **kwargs)
 
     # reinforce stochastic agent
     agent = ReinforceStochastic(
@@ -42,12 +46,6 @@ def main():
     env.close()
     if not succ:
         return
-
-    # render agent
-    if args.render:
-        env = gym.make(args.env_id, max_episode_steps=args.n_steps_lim, render_mode='human')
-        agent.load_backup_model(data, i=args.n_grad_iterations)
-        simulate_learnt_policy_episode(env, agent.policy, args)
 
     # do plots
     if not args.plot:

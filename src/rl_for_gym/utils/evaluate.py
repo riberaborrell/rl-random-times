@@ -153,7 +153,7 @@ def eval_random_policy_vect_sync(env, gamma: float = 1., truncate=True,
                                  log_freq: int = 10, seed=None, load=False):
 
     # get dir path
-    dir_path = get_dir_path(env.spec.id, algorithm_name='random')
+    dir_path = get_dir_path(env.envs[0].spec.id, algorithm_name='random')
 
     # load results
     if load:
