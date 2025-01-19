@@ -5,7 +5,7 @@ import numpy as np
 from rl_for_gym.spg.reinforce_stochastic_core import ReinforceStochastic
 from rl_for_gym.wrappers.episodic_reacher import EpisodicReacherEnv
 from rl_for_gym.utils.base_parser import get_base_parser
-from rl_for_gym.utils.plots import plot_y_per_episode
+from rl_for_gym.utils.plots import plot_y_per_grad_iteration
 
 def make_env(env_id, max_episode_steps=100):
     def _init():
@@ -23,7 +23,7 @@ def main():
 
     # reinforce stochastic agent
     agent = ReinforceStochastic(
-        env, args.env_id, args.n_steps_lim, args.expectation_type, args.return_type, args.gamma,
+        env, env.envs[0].spec.id, env.envs[0]._max_episode_steps, args.expectation_type, args.return_type, args.gamma,
         args.n_layers, args.d_hidden, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
         args.gaussian_policy_type, args.policy_noise, args.estimate_z,
         args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,
@@ -38,13 +38,14 @@ def main():
         load=args.load,
     )
     env.close()
+    breakpoint()
 
     # do plots
     if not args.plot or not succ:
         return
 
     # plot returns and time steps
-    x = np.arange(args.n_episodes)
+    x = np.arange(args.n_grad_iterations + 1)
     plot_y_per_grad_iteration(x, data['mean_returns'], title='Mean return', run_window=10, legend=True)
     plot_y_per_grad_iteration(x, data['mean_lengths'], title='Mean time steps', run_window=10)
     plot_y_per_grad_iteration(x, data['losses'], title='Losses', run_window=100)
