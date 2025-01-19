@@ -1,98 +1,16 @@
 import gymnasium as gym
 import numpy as np
-import matplotlib.pyplot as plt
 
 from rl_for_gym.utils.base_parser import get_base_parser
-from rl_for_gym.utils.numeric import discount_cumsum
-from rl_for_gym.utils.path import load_data, save_data, get_dir_path
+from rl_for_gym.utils.evaluate import eval_random_policy_vect_sync
 from rl_for_gym.utils.plots import plot_y_per_episode
-
-def random_policy_sync(env, gamma: float = 1., truncate=True, log_freq: int = 10, seed=None, load=False):
-
-    # get dir path
-    dir_path = get_dir_path(env.spec.id, algorithm_name='random')
-
-    # load results
-    if load:
-        return load_data(dir_path)
-
-    # reset environment
-    obs, info = env.reset()#seed=seed)
-
-    # reset rewards
-    batch_size = env.num_envs
-    #rewards = np.empty((batch_size, 0))
-    rewards = []
-
-    # terminated flags
-    been_terminated = np.full((batch_size,), False)
-    new_terminated = np.full((batch_size,), False)
-    done = new_terminated
-
-    while not done.all():
-
-        # take a random actions
-        actions = env.action_space.sample()
-
-        # step dynamics forward
-        obs, r, terminated, truncated, infos = env.step(actions)
-
-        # check if truncattion is allowed
-        if not truncate:
-            truncated[:] = False
-
-        # update terminated flags
-        new_terminated = terminated & ~been_terminated
-        been_terminated = terminated | been_terminated
-
-        # done flags
-        done = np.logical_or(been_terminated, truncated)
-
-        # number of time steps elapsed
-        #print(k, done.sum(), new_terminated.sum())
-        # save reward
-        #rewards = np.hstack((rewards, np.expand_dims(r, axis=1)))
-        rewards.append(r)
-
-        # save time steps
-        #if new_terminated.any() or truncated.any():
-        #    idx = new_terminated | truncated
-            #returns[idx] = np.sum(rewards[idx], axis=1)
-            #time_steps[idx] = k
-
-        # interrupt if all trajectories have reached a terminal state or have been truncated 
-        if done.all():
-            break
-
-
-    # get episode lengths
-    time_steps = np.array([e._elapsed_steps for e in env.envs], dtype=np.int32)
-
-    # compute returns
-    #TODO: generalize to discounted returns
-    #returns = np.zeros(batch_size, dtype=np.float32)
-    #for i in range(batch_size):
-        #returns[i] = discount_cumsum(rewards[i, :time_steps[i]], gamma)
-    #    returns[i] = np.stack(rewards)[:time_steps[i], i].sum()
-    returns = np.array([np.stack(rewards)[:time_steps[i], i].sum() for i in range(batch_size)])
-
-    print('Mean return: {:.1f}'.format(np.mean(returns)))
-    print('Mean time steps: {:.1f}'.format(np.mean(time_steps)))
-
-    data = {
-        'returns': returns,
-        'time_steps': time_steps,
-    }
-    save_data(data, dir_path)
-    return True, data
 
 
 def main():
     args = get_base_parser().parse_args()
 
     # create gym env
-    env = gym.make_vec(args.env_id, num_envs=args.n_episodes,# batch_size=args.batch_size,
-                       vectorization_mode="sync")
+    env = gym.make_vec(args.env_id, num_envs=args.n_episodes, vectorization_mode="sync")
 
     # set max episode steps
     if args.n_steps_lim is not None:
@@ -100,15 +18,13 @@ def main():
             env.envs[i]._max_episode_steps = args.n_steps_lim
 
     # run random policy vectorized
-    succ, data = random_policy_sync(
+    succ, data = eval_random_policy_vect_sync(
         env,
         seed=args.seed,
-        truncate=args.truncate,
         log_freq=args.log_freq,
         load=args.load,
     )
     env.close()
-
 
     # do plots
     if not args.plot or not succ:
@@ -116,8 +32,8 @@ def main():
 
     # plot returns and time steps
     x = np.arange(args.n_episodes)
-    plot_y_per_episode(x, data['returns'], run_window=100, title='Returns', legend=True)
-    plot_y_per_episode(x, data['time_steps'], run_window=100, title='Time steps')
+    plot_y_per_episode(x, data['returns'], title='Returns', run_window=100, legend=True)
+    plot_y_per_episode(x, data['time_steps'], title='Time steps',run_window=100)
 
 if __name__ == '__main__':
     main()

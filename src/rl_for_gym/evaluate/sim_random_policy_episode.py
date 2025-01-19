@@ -2,36 +2,25 @@
 import gymnasium as gym
 
 from rl_for_gym.utils.base_parser import get_base_parser
+from rl_for_gym.utils.evaluate import simulate_random_policy_episode
 
 def main():
     args = get_base_parser().parse_args()
 
-    # create gym env 
+    # env parameters
+    kwargs = {}
+
+    # render mode
     if args.render:
-        env = gym.make(args.env_id, render_mode='human')
-    else:
-        env = gym.make(args.env_id)
+        kwargs['render_mode'] = 'human'
 
-    # reset environment
-    obs, info = env.reset(seed=args.seed)
+    # create gym env 
+    env = gym.make(args.env_id, max_episode_steps=args.n_steps_lim, **kwargs)
 
-    for k in range(args.n_steps_lim):
+    # simulate
+    simulate_random_policy_episode(env, args.seed,
+                                   log_freq=args.log_freq, time_sleep=args.time_sleep)
 
-        # take a random action
-        action = env.action_space.sample()
-
-        # step dynamics forward
-        obs, r, terminated, truncated, info = env.step(action)
-        truncated = False if not args.truncate else truncated
-        done = terminated or truncated
-
-        # log
-        print(k, obs, r, done, truncated)
-
-        if done:
-            break
-
-    env.close()
 
 if __name__ == '__main__':
     main()
