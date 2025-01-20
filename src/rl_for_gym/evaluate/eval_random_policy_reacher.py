@@ -8,11 +8,18 @@ from rl_for_gym.utils.evaluate import eval_random_policy
 from rl_for_gym.utils.plots import plot_y_per_episode
 
 def main():
-    args = get_base_parser().parse_args()
+    parser = get_base_parser()
+    parser.add_argument(
+        '--threshold-dist',
+        type=float,
+        default=0.05,
+        help='Threshold distance for Episodic Reacher environment. Default: 0.05',
+    )
+    args = parser.parse_args()
 
     # create gym env 
     env = gym.make('Reacher-v5')
-    env = EpisodicReacherEnv(env, threshold_dist=0.01)
+    env = EpisodicReacherEnv(env, threshold_dist=args.threshold_dist)
     env = TimeLimit(env, max_episode_steps=int(1e6))
 
     # run random policy

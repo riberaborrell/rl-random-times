@@ -11,7 +11,7 @@ import gymnasium as gym
 #[docs]
 
 class EpisodicReacherEnv(gym.Wrapper):
-    def __init__(self, env: gym.Env, threshold_dist: float = 0.02,
+    def __init__(self, env: gym.Env, threshold_dist: float = 0.05,
                  reward_dist_weight: float = 0., reward_ctrl_weight: float = 0.1,
                  running_cost: float = 1., terminal_reward: float = 0.):
 

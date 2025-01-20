@@ -7,19 +7,28 @@ from rl_for_gym.wrappers.episodic_reacher import EpisodicReacherEnv
 from rl_for_gym.utils.base_parser import get_base_parser
 from rl_for_gym.utils.plots import plot_y_per_grad_iteration
 
-def make_env(env_id, max_episode_steps=100):
+def make_env(env_id, threshold_dist):
     def _init():
         env = gym.make(env_id)
-        env = EpisodicReacherEnv(env, threshold_dist=0.01)
+        env = EpisodicReacherEnv(env, threshold_dist)
         env = TimeLimit(env, max_episode_steps=int(1e6))
         return env
     return _init
 
 def main():
-    args = get_base_parser().parse_args()
+    parser = get_base_parser()
+    parser.add_argument(
+        '--threshold-dist',
+        type=float,
+        default=0.05,
+        help='Threshold distance for Episodic Reacher environment. Default: 0.05',
+    )
+    args = parser.parse_args()
 
     # create vectorized environment
-    env = gym.vector.SyncVectorEnv([make_env("Reacher-v5") for _ in range(args.batch_size)])
+    env = gym.vector.SyncVectorEnv(
+        [make_env("Reacher-v5", args.threshold_dist) for _ in range(args.batch_size)]
+    )
 
     # reinforce stochastic agent
     agent = ReinforceStochastic(
@@ -38,7 +47,6 @@ def main():
         load=args.load,
     )
     env.close()
-    breakpoint()
 
     # do plots
     if not args.plot or not succ:

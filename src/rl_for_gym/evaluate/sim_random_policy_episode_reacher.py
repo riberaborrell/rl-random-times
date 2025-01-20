@@ -6,7 +6,14 @@ from rl_for_gym.utils.base_parser import get_base_parser
 from rl_for_gym.utils.evaluate import simulate_random_policy_episode
 
 def main():
-    args = get_base_parser().parse_args()
+    parser = get_base_parser()
+    parser.add_argument(
+        '--threshold-dist',
+        type=float,
+        default=0.1,
+        help='Threshold distance for Episodic Reacher environment. Default: 0.1',
+    )
+    args = parser.parse_args()
 
     # env parameters
     kwargs = {}
@@ -17,7 +24,7 @@ def main():
 
     # create gym env 
     env = gym.make('Reacher-v5', **kwargs)
-    env = EpisodicReacherEnv(env, threshold_dist=0.01)
+    env = EpisodicReacherEnv(env, threshold_dist=args.threshold_dist)
     env = TimeLimit(env, max_episode_steps=int(1e6))
 
     # simulate
