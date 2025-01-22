@@ -10,9 +10,16 @@ def main():
     parser.add_argument(
         '--threshold-dist',
         type=float,
-        default=0.1,
-        help='Threshold distance for Episodic Reacher environment. Default: 0.1',
+        default=0.05,
+        help='Threshold distance for Episodic Reacher environment. Default: 0.05',
     )
+    parser.add_argument(
+        '--threshold-vel',
+        type=float,
+        default=1.,
+        help='Threshold angular velocity for Episodic Reacher environment. Default: 1.',
+    )
+
     args = parser.parse_args()
 
     # env parameters
@@ -24,7 +31,8 @@ def main():
 
     # create gym env 
     env = gym.make('Reacher-v5', **kwargs)
-    env = EpisodicReacherEnv(env, threshold_dist=args.threshold_dist)
+    env = EpisodicReacherEnv(env, threshold_dist=args.threshold_dist,
+                             threshold_angular_vel=args.threshold_vel)
     env = TimeLimit(env, max_episode_steps=int(1e6))
 
     # simulate

@@ -15,11 +15,25 @@ def main():
         default=0.05,
         help='Threshold distance for Episodic Reacher environment. Default: 0.05',
     )
+    parser.add_argument(
+        '--threshold-vel',
+        type=float,
+        default=1.,
+        help='Threshold angular velocity for Episodic Reacher environment. Default: 1.',
+    )
+    parser.add_argument(
+        '--reward-ctrl-weight',
+        type=float,
+        default=0.1,
+        help='Reward control weight parameter of the Reacher environment. Default: 0.1',
+    )
     args = parser.parse_args()
+
 
     # create gym env 
     env = gym.make('Reacher-v5')
-    env = EpisodicReacherEnv(env, threshold_dist=args.threshold_dist)
+    env = EpisodicReacherEnv(env, threshold_dist=args.threshold_dist,
+                             threshold_angular_vel=args.threshold_vel, reward_ctrl_weight=args.reward_ctrl_weight)
     env = TimeLimit(env, max_episode_steps=int(1e6))
 
     # run random policy

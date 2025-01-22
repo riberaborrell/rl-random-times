@@ -5,6 +5,7 @@ import numpy as np
 from rl_for_gym.spg.reinforce_stochastic_core import ReinforceStochastic
 from rl_for_gym.wrappers.episodic_swimmer import EpisodicSwimmerEnv
 from rl_for_gym.utils.base_parser import get_base_parser
+from rl_for_gym.utils.path import get_swimmer_params_str
 from rl_for_gym.utils.plots import plot_y_per_grad_iteration
 
 def make_env(env_id, threshold_fwd_dist):
@@ -30,9 +31,15 @@ def main():
         [make_env("Swimmer-v5", args.threshold_fwd_dist) for _ in range(args.batch_size)]
     )
 
+    # environment name
+    env_name = '{}__{}'.format(
+        env.envs[0].spec.id,
+        get_swimmer_params_str(args.threshold_fwd_dist)
+    )
+
     # reinforce stochastic agent
     agent = ReinforceStochastic(
-        env, env.envs[0].spec.id, env.envs[0]._max_episode_steps, args.expectation_type, args.return_type, args.gamma,
+        env, env_name, env.envs[0]._max_episode_steps, args.expectation_type, args.return_type, args.gamma,
         args.n_layers, args.d_hidden, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
         args.gaussian_policy_type, args.policy_noise, args.estimate_z,
         args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,

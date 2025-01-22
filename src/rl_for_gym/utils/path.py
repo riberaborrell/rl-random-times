@@ -72,6 +72,18 @@ def get_dir_path(env_id: str, algorithm_name: str, param_str: str = '') -> str:
 
     return dir_path
 
+def get_reacher_params_str(threshold_dist, threshold_vel, reward_ctrl_weight):
+    ''' get string with the Reacher environment parameters.'''
+    return 'threshold-dist{:.1e}_threshold-vel{:.1e}_reward-ctrl-weight{:.1e}'.format(
+        threshold_dist, threshold_vel, reward_ctrl_weight,
+    )
+
+def get_swimmer_params_str(threshold_fwd_dist):
+    ''' get string with the Swimmer environment parameters.'''
+    return 'threshold-fwd-dist{:.1e}'.format(
+        threshold_fwd_dist,
+    )
+
 def get_model_arch_str(**kwargs):
     string = ''
     if 'n_layers' in kwargs.keys():

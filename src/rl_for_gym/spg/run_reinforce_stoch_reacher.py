@@ -5,12 +5,14 @@ import numpy as np
 from rl_for_gym.spg.reinforce_stochastic_core import ReinforceStochastic
 from rl_for_gym.wrappers.episodic_reacher import EpisodicReacherEnv
 from rl_for_gym.utils.base_parser import get_base_parser
+from rl_for_gym.utils.path import get_reacher_params_str
 from rl_for_gym.utils.plots import plot_y_per_grad_iteration
 
-def make_env(env_id, threshold_dist):
+def make_env(env_id, threshold_dist, threshold_vel, reward_ctrl_weight):
     def _init():
         env = gym.make(env_id)
-        env = EpisodicReacherEnv(env, threshold_dist)
+        env = EpisodicReacherEnv(env, threshold_dist, threshold_vel,
+                                 reward_ctrl_weight=reward_ctrl_weight)
         env = TimeLimit(env, max_episode_steps=int(1e6))
         return env
     return _init
@@ -23,16 +25,34 @@ def main():
         default=0.05,
         help='Threshold distance for Episodic Reacher environment. Default: 0.05',
     )
+    parser.add_argument(
+        '--threshold-vel',
+        type=float,
+        default=1.,
+        help='Threshold angular velocity for Episodic Reacher environment. Default: 1.',
+    )
+    parser.add_argument(
+        '--reward-ctrl-weight',
+        type=float,
+        default=0.1,
+        help='Reward control weight parameter of the Reacher environment. Default: 0.1',
+    )
     args = parser.parse_args()
 
     # create vectorized environment
     env = gym.vector.SyncVectorEnv(
-        [make_env("Reacher-v5", args.threshold_dist) for _ in range(args.batch_size)]
+        [make_env("Reacher-v5", args.threshold_dist, args.threshold_vel, args.reward_ctrl_weight) for _ in range(args.batch_size)]
+    )
+
+    # environment name
+    env_name = '{}__{}'.format(
+        env.envs[0].spec.id,
+        get_reacher_params_str(args.threshold_dist, args.threshold_vel, args.reward_ctrl_weight),
     )
 
     # reinforce stochastic agent
     agent = ReinforceStochastic(
-        env, env.envs[0].spec.id, env.envs[0]._max_episode_steps, args.expectation_type, args.return_type, args.gamma,
+        env, env_name, env.envs[0]._max_episode_steps, args.expectation_type, args.return_type, args.gamma,
         args.n_layers, args.d_hidden, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
         args.gaussian_policy_type, args.policy_noise, args.estimate_z,
         args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,
