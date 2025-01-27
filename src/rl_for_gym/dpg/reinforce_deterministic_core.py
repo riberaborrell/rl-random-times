@@ -11,7 +11,7 @@ import torch.optim as optim
 from rl_for_gym.dpg.models import DeterministicPolicy
 from rl_for_gym.dpg.replay_memories import ReplayMemoryModelBasedDPG as Memory
 from rl_for_gym.utils.statistics import Statistics
-from rl_for_gym.utils.schedulers import simple_lr_schedule, two_phase_lr_schedule
+from rl_for_gym.utils.schedulers import simple_lr_schedule#, two_phase_lr_schedule
 from rl_for_gym.utils.numeric import dot_vect, cumsum_numpy as cumsum, normalize_array
 from rl_for_gym.utils.path import load_data, save_data, save_model, load_model, get_reinforce_det_dir_path
 
@@ -73,13 +73,9 @@ class ReinforceDeterministic:
         self.scheduled_lr = scheduled_lr
         if scheduled_lr:
             self.lr_final = lr_final
-            #self.lr_decay = lr_decay
-            #lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
-            #                                lr_final=lr_final, n_iter=n_grad_iterations+1)
-            lr_schedule = functools.partial(two_phase_lr_schedule, lr_init=lr,
-                                            lr_final=lr_final, n_iter_adaptive=int(n_grad_iterations/2)+1)
+            lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
+                                            lr_final=lr_final, n_iter=n_grad_iterations+1)
             self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_schedule)
-            #self.scheduler = optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=lr_final)
         else:
             self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda it: 1)
 
@@ -378,14 +374,16 @@ class ReinforceDeterministic:
         objectives = np.empty(array_shape)
         mean_lengths = np.empty(array_shape)
         max_lengths = np.empty(array_shape)
+        #total_lengths = np.empty(array_shape)
 
         # load evaluation
         for i, data in enumerate(datas):
             objectives[i] = data['mean_returns']
             mean_lengths[i] = data['mean_lengths']
             max_lengths[i] = data['max_lengths']
+            #total_lengths[i] = data['total_lengths']
 
-        return objectives, mean_lengths, max_lengths
+        return objectives, mean_lengths, max_lengths#, total_lengths
 
     def load_backup_model(self, data, i=0):
         try:

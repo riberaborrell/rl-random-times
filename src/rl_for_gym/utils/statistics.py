@@ -41,6 +41,7 @@ class Statistics(object):
         self.mean_lengths = np.full(self.n_epochs, np.nan)
         self.var_lengths = np.full(self.n_epochs, np.nan)
         self.max_lengths = np.full(self.n_epochs, np.nan)
+        self.total_lengths = np.full(self.n_epochs, np.nan)
 
         # returns
         self.mean_returns = np.full(self.n_epochs, np.nan)
@@ -70,6 +71,7 @@ class Statistics(object):
 
         self.mean_lengths[i], self.var_lengths[i], _, _ = compute_array_statistics(time_steps)
         self.max_lengths[i] = np.max(time_steps)
+        self.total_lengths[i] = np.sum(time_steps)
         self.mean_returns[i], self.var_returns[i], _, _ = compute_array_statistics(returns)
         if self.track_loss:
             self.losses[i] = loss
@@ -92,26 +94,6 @@ class Statistics(object):
             msg += 'lr: {:.3e}'.format(self.lrs[i])
         print(msg)
 
-    def save_stats(self, dir_path):
-        save_data(self.__dict__, dir_path, file_name='eval-{}.npz'.format(self.policy_type))
-
-    def load_stats(self, dir_path):
-        # get data dictionary
-        succ, data = load_data(dir_path, file_name='eval-{}.npz'.format(self.policy_type))
-        if not succ:
-            return
-
-        assert self.eval_freq == data['eval_freq'], 'eval freq mismatch'
-        assert self.eval_batch_size == data['eval_batch_size'], 'eval batch size mismatch'
-        assert self.n_iterations == data['n_iterations'], 'iterations mismatch'
-
-        # recover attributes
-        for key in data:
-            setattr(self, key, data[key])
-
-        # compute missing attributes
-        self.std_fhts, self.re_fhts = compute_std_and_re(self.mean_fhts, self.var_fhts)
-
     def get_n_iterations_until_goal(self, attr_name, threshold, sign='smaller', run_window=10):
         assert sign in ['smaller', 'bigger'], 'The inequality sign is not correct'
         if not hasattr(self, attr_name):
@@ -128,7 +110,7 @@ class Statistics(object):
         # get number of iterations
         iterations = np.arange(self.n_epochs) * self.eval_freq
 
-        return iterations, self.mean_returns, self.mean_fhts, self.max_lengths
+        return iterations, self.mean_returns, self.mean_fhts, self.max_lengths#, self.total_lengths
 
     def get_stats_multiple_datas(self, datas):
 
@@ -140,12 +122,13 @@ class Statistics(object):
         objectives = np.empty(array_shape)
         mfhts = np.empty(array_shape)
         max_lengths = np.empty(array_shape)
+        #total_lengths = np.empty(array_shape)
 
         # load evaluation
         for i, data in enumerate(datas):
-            self.load_stats(data['dir_path'])
-            objectives[i] = self.mean_returns
-            mfhts[i] = self.mean_fhts
-            max_lengths[i] = self.max_lengths
+            objectives[i] = data['mean_returns']
+            mfhts[i] = data['mean_fhts']
+            max_lengths[i] = data['max_lengths']
+            #total_lengths[i] = data['total_lengths']
 
-        return iterations, objectives, mfhts, max_lengths
+        return iterations, objectives, mfhts, max_lengths#, total_lengths
