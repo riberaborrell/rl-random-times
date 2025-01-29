@@ -94,7 +94,7 @@ def get_z_factor_experiment(env, kwargs, kwargs_rt, kwargs_op, kwargs_op_unbiase
 
         # on policy expectation with z-factor estimated 
         for j, lr in enumerate(lrs[1]):
-            agent = ReinforceClass(env, estimate_z=True, lr=lr, **kwargs, **kwargs_op)
+            agent = ReinforceClass(env, lr=lr, **kwargs, **kwargs_op, **kwargs_op_unbiased)
             succ, data = agent.run_reinforce(load=True)
             if succ:
                 lasts[1][i, j], n_grad_iters[1][i, j], time_steps[1][i, j], cts[1][i, j] \
@@ -102,7 +102,7 @@ def get_z_factor_experiment(env, kwargs, kwargs_rt, kwargs_op, kwargs_op_unbiase
 
         # on policy expectation with z-factor neglected 
         for j, lr in enumerate(lrs[2]):
-            agent = ReinforceClass(env, estimate_z=False, lr=lr, **kwargs, **kwargs_op)
+            agent = ReinforceClass(env, lr=lr, **kwargs, **kwargs_op, **kwargs_op_biased)
             succ, data = agent.run_reinforce(load=True)
             if succ:
                 lasts[2][i, j], n_grad_iters[2][i, j], time_steps[2][i, j], cts[2][i, j] \

@@ -198,13 +198,16 @@ class ReinforceDeterministic:
         # normalize returns
         #returns = normalize_array(returns, eps=1e-5)
 
-        # compute girsanov deterministic and stochastic integrals
-        #TODO: find general names for girs_det_int and girs_stoch_int
-        girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * self.env.unwrapped.dt
-        girs_stoch_int = dot_vect(dbts, actions)
+        # compute alternative objective terms
+
+        # policy x \nabla_a r(s, a)
+        a = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * self.env.unwrapped.dt
+
+        # policy x brownian increments
+        b = dot_vect(dbts, actions)
 
         # calculate loss
-        phi = girs_det_int - returns * girs_stoch_int
+        phi = a - returns * b
 
         # loss and loss variance
         loss = phi.sum() / self.batch_size
@@ -255,13 +258,15 @@ class ReinforceDeterministic:
         returns = batch['returns']
         #returns = normalize_array(returns, eps=1e-5)
 
-        #TODO: find general names for girs_det_int and girs_stoch_int
-        # compute girsanov deterministic and stochastic integrals
-        girs_det_int = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * self.env.unwrapped.dt
-        girs_stoch_int = dot_vect(batch['dbts'], actions)
+        # compute alternative objective terms
+        # policy x \nabla_a r(s, a)
+        a = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * self.env.unwrapped.dt
+
+        # policy x brownian increments
+        b = dot_vect(batch['dbts'], actions)
 
         # calculate loss
-        phi = girs_det_int - batch['returns'] * girs_stoch_int
+        phi = a - batch['returns'] * b
         loss = phi.mean()
         with torch.no_grad():
             loss_var = phi.var().numpy()
