@@ -6,9 +6,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from rl_for_gym.spg.models import CategoricalPolicy, GaussianPolicyLearntCov
-from rl_for_gym.utils.numeric import discounted_cumsum_list, normalize_array
-from rl_for_gym.utils.path import load_data, save_data, get_reinforce_simple_dir_path
+from rl_random_times.spg.models import CategoricalPolicy, GaussianPolicyLearntCov
+from rl_random_times.utils.numeric import discounted_cumsum_list, normalize_array
+from rl_random_times.utils.path import load_data, save_data, get_reinforce_simple_dir_path
 
 class ReinforceStochastic:
     ''' Basic implementation of the REINFORCE algorithm i.e. stochastic policy gradient

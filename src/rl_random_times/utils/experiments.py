@@ -1,8 +1,8 @@
 import numpy as np
 
-from rl_for_gym.spg.reinforce_stochastic_core import ReinforceStochastic
-from rl_for_gym.dpg.reinforce_deterministic_core import ReinforceDeterministic
-from rl_for_gym.utils.numeric import compute_running_mean
+from rl_random_times.spg.stochastic_pg_core import ReinforceStochastic
+from rl_random_times.dpg.deterministic_pg_core import ModelBasedDeterministicPG
+from rl_random_times.utils.numeric import compute_running_mean
 
 LEARNING_RATES = [
     1e-7, 2e-7, 5e-7, 1e-6, 2e-6, 5e-6,
@@ -70,7 +70,7 @@ def get_z_factor_experiment(env, kwargs, kwargs_rt, kwargs_op, kwargs_op_unbiase
         #return last_key_values, n_iter, total_steps, cts
 
     # deterministic policy or stochastic policy
-    ReinforceClass = ReinforceStochastic if 'policy_type' in kwargs else ReinforceDeterministic
+    ReinforceClass = ReinforceStochastic if 'policy_type' in kwargs else ModelBasedDeterministicPG
 
     # preallocate arrays
     lasts = [np.full((len(seeds), len(lrs[i])), np.nan) for i in range(3)]

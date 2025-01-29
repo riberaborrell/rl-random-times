@@ -1,5 +1,5 @@
 # config file
-src/rl_for_gym/utils/config.py
+src/rl_random_times/utils/config.py
 
 # data files
 data/

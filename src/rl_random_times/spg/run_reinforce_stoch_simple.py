@@ -2,9 +2,9 @@ import gymnasium as gym
 
 import numpy as np
 
-from rl_for_gym.spg.reinforce_stochastic_simple import ReinforceStochastic
-from rl_for_gym.utils.base_parser import get_base_parser
-from rl_for_gym.utils.plots import plot_y_per_episode
+from rl_random_times.spg.stochastic_pg_simple import ReinforceStochastic
+from rl_random_times.utils.base_parser import get_base_parser
+from rl_random_times.utils.plots import plot_y_per_episode
 
 def main():
     args = get_base_parser().parse_args()

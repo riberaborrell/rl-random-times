@@ -2,11 +2,11 @@ import gymnasium as gym
 from gymnasium.wrappers import TimeLimit
 import numpy as np
 
-from rl_for_gym.spg.reinforce_stochastic_core import ReinforceStochastic
-from rl_for_gym.wrappers.episodic_swimmer import EpisodicSwimmerEnv
-from rl_for_gym.utils.base_parser import get_base_parser
-from rl_for_gym.utils.path import get_swimmer_params_str
-from rl_for_gym.utils.plots import plot_y_per_grad_iteration
+from rl_random_times.spg.stochastic_pg_core import ReinforceStochastic
+from rl_random_times.wrappers.episodic_swimmer import EpisodicSwimmerEnv
+from rl_random_times.utils.base_parser import get_base_parser
+from rl_random_times.utils.path import get_swimmer_params_str
+from rl_random_times.utils.plots import plot_y_per_grad_iteration
 
 def make_env(env_id, threshold_fwd_dist):
     def _init():

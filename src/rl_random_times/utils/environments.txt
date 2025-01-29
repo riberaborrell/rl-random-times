@@ -1,0 +1,25 @@
+# finite state and action space
+CliffWalking-v0 (|S| = 48, |A| = 4) 
+Blackjack-v1 (|S| = 32 x 11 x 2, |A| = 2) 
+
+# continuous state space, finite action space
+Acrobot-v0 (S = R^6, |A| = 3)
+CartPole-v1 (S = R^4, |A| = 2)
+MountainCar-v0 (S = R^2, |A| = 3)
+
+# Continuous state and action space
+
+## fht decreases with learning 
+MountainCarContinuous-v0 (S = R^2, A = R^1)
+
+## fht increases with learning 
+InvertedPendulum-v4 (S = R^4, A = R)
+InvertedDoublePendulum-v4 (S = R^9, A = R)
+Hopper-v4 (S = R^11, A = R^3)
+HalfCheetah-v4 (S = R^17, A = R^6)
+Humanoid-v4 (S = R^376, A = R^17)
+
+## finite-time horizon
+Pendulum-v1 (S = R^3, A = R)
+Swimmer-v4 (S = R^8, A = R^2)
+Reacher-v4 (S = R^10, A = R^2)

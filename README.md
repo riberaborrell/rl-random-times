@@ -1,5 +1,5 @@
-# rl-for-gym
-This Python repository contains the implementation of reinforcement learning algorithms for the gymansium classic conrol and MuJoCo environments.
+# rl-random-times
+This Python repository contains the implementation of reinforcement learning algorithms with random time horizons.
 
 ## Contains
 - Policy gradient (PG) with (random time horizon) trajectories expectations and q-value estimated by the returns (REINFORCE algorithm for stochastic policies).

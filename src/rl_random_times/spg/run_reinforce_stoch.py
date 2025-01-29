@@ -2,9 +2,9 @@ import envpool
 import gymnasium as gym
 import numpy as np
 
-from rl_for_gym.spg.reinforce_stochastic_core import ReinforceStochastic
-from rl_for_gym.utils.base_parser import get_base_parser
-from rl_for_gym.utils.plots import plot_y_per_grad_iteration
+from rl_random_times.spg.stochastic_pg_core import ReinforceStochastic
+from rl_random_times.utils.base_parser import get_base_parser
+from rl_random_times.utils.plots import plot_y_per_grad_iteration
 
 def main():
     args = get_base_parser().parse_args()
@@ -36,7 +36,7 @@ def main():
         args.optim_type, args.scheduled_lr, args.lr_final,
     )
 
-    # run reinforce with random time horizon 
+    # run
     succ, data = agent.run_reinforce(
         log_freq=args.log_freq,
         backup_freq=args.backup_freq,

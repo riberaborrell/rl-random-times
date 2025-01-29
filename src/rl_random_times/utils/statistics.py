@@ -1,7 +1,7 @@
 import numpy as np
 
-from rl_for_gym.utils.numeric import compute_running_mean
-from rl_for_gym.utils.path import load_data, save_data
+from rl_random_times.utils.numeric import compute_running_mean
+from rl_random_times.utils.path import load_data, save_data
 
 def compute_array_statistics(array: np.array):
     mean = np.mean(array)

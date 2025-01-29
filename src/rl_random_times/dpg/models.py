@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from rl_for_gym.utils.models import mlp
+from rl_random_times.utils.models import mlp
 
 class DeterministicPolicy(nn.Module):
 

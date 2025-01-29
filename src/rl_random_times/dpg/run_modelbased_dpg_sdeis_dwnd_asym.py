@@ -1,9 +1,9 @@
 import gymnasium as gym
 import gym_sde_is
 
-from rl_for_gym.dpg.reinforce_deterministic_core import ReinforceDeterministic
-from rl_for_gym.utils.base_parser import get_base_parser
-from rl_for_gym.utils.plots import *
+from rl_random_times.dpg.deterministic_pg_core import ModelBasedDeterministicPG
+from rl_random_times.utils.base_parser import get_base_parser
+from rl_random_times.utils.plots import *
 
 
 def main():
@@ -56,16 +56,15 @@ def main():
         is_vectorized=True,
     )
 
-    # reinforce deterministic agent
-    breakpoint()
-    agent = ReinforceDeterministic(
+    # model-based deterministic pg agent 
+    agent = ModelBasedDeterministicPG(
         env, env.unwrapped.__str__(), env._max_episode_steps, args.expectation_type, args.return_type, args.gamma,
         args.n_layers, args.d_hidden, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
         args.estimate_z, args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,
         args.optim_type, args.scheduled_lr, args.lr_final,
     )
 
-    # run reinforce with random time horizon 
+    # run
     succ, data = agent.run_reinforce(
         log_freq=args.log_freq,
         backup_freq=args.backup_freq,

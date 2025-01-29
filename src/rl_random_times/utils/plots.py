@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from rl_for_gym.utils.numeric import compute_running_mean
-import rl_for_gym.utils.mpl_config
+from rl_random_times.utils.numeric import compute_running_mean
+import rl_random_times.utils.mpl_config
 
 # tableau palettes from matplotlib 
 COLORS_TAB10 = [plt.cm.tab10(i) for i in range(20)]

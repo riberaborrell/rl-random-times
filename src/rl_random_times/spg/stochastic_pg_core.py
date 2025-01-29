@@ -8,23 +8,33 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from rl_for_gym.dpg.models import DeterministicPolicy
-from rl_for_gym.dpg.replay_memories import ReplayMemoryModelBasedDPG as Memory
-from rl_for_gym.utils.statistics import Statistics
-from rl_for_gym.utils.schedulers import simple_lr_schedule#, two_phase_lr_schedule
-from rl_for_gym.utils.numeric import dot_vect, cumsum_numpy as cumsum, normalize_array
-from rl_for_gym.utils.path import load_data, save_data, save_model, load_model, get_reinforce_det_dir_path
+from rl_random_times.spg.models import CategoricalPolicy, GaussianPolicyConstantCov, GaussianPolicyLearntCov
+from rl_random_times.spg.replay_memories import ReplayMemoryReturn as Memory
+from rl_random_times.utils.statistics import Statistics
+from rl_random_times.utils.schedulers import simple_lr_schedule#, two_phase_lr_schedule
+from rl_random_times.utils.numeric import cumsum_numpy as cumsum, normalize_array
+from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_reinforce_stoch_dir_path
 
-class ReinforceDeterministic:
+class ReinforceStochastic:
     def __init__(self, env, env_id, n_steps_lim, expectation_type, return_type, gamma,
                  n_layers, d_hidden_layer, batch_size, lr, n_grad_iterations, seed,
-                 estimate_z=None, batch_size_z=None, mini_batch_size=None, mini_batch_size_type='constant', optim_type='adam',
+                 policy_type=None, policy_noise=None, estimate_z=None, batch_size_z=None,
+                 mini_batch_size=None, mini_batch_size_type='constant', optim_type='adam',
                  scheduled_lr=False, lr_final=None):
 
-        assert isinstance(env.action_space, gym.spaces.Box), 'Action space must be continuous.'
+        if isinstance(env.action_space, gym.spaces.Box):
+            self.is_action_continuous = True
+        elif isinstance(env.action_space, gym.spaces.Discrete) or \
+             isinstance(env.action_space, gym.spaces.MultiDiscrete):
+            self.is_action_continuous = False
+        else:
+            raise ValueError('Action space must be either continuous or discrete.')
 
         # agent name
-        self.agent = 'reinforce-det-{}'.format(expectation_type)
+        if self.is_action_continuous:
+            self.agent = 'reinforce-cont-{}'.format(expectation_type)
+        else:
+            self.agent = 'reinforce-discrete-{}'.format(expectation_type)
 
         # environment and state and action dimension
         self.env_id = env_id
@@ -32,8 +42,19 @@ class ReinforceDeterministic:
         self.n_steps_lim = n_steps_lim
 
         # get state and action dimensions
-        self.state_dim = env.observation_space.shape[0]
-        self.action_dim = env.action_space.shape[0]
+        if 'EnvPool' in type(env).__name__ or hasattr(env.unwrapped, 'is_vectorized'):
+            self.state_dim = env.observation_space.shape[0]
+            if self.is_action_continuous:
+                self.action_dim = env.action_space.shape[0]
+            else:
+                self.n_actions = env.action_space.n
+
+        else:
+            self.state_dim = env.observation_space.shape[1]
+            if self.is_action_continuous:
+                self.action_dim = env.action_space.shape[1]
+            else:
+                self.n_actions = env.action_space.n
 
         # expectation type and return type
         self.expectation_type = expectation_type
@@ -42,14 +63,28 @@ class ReinforceDeterministic:
         # discount
         self.gamma = gamma
 
-        # deterministic policy
+        # stochastic policy
+        self.policy_type = policy_type
+        self.policy_noise = policy_noise
         self.n_layers = n_layers
         self.d_hidden_layer = d_hidden_layer
 
         # initialize policy model
         hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
-        self.policy= DeterministicPolicy(state_dim=self.state_dim, action_dim=self.action_dim,
-                                         hidden_sizes=hidden_sizes, activation=nn.Tanh())
+        if self.is_action_continuous and policy_type == 'const-cov':
+            self.policy = GaussianPolicyConstantCov(
+                self.state_dim, self.action_dim, hidden_sizes,
+                activation=nn.Tanh(), std=self.policy_noise, seed=seed,
+            )
+        elif self.is_action_continuous and policy_type == 'learnt-cov':
+            self.policy = GaussianPolicyLearntCov(
+                self.state_dim, self.action_dim, hidden_sizes,
+                activation=nn.Tanh(), std_init=self.policy_noise, seed=seed,
+            )
+        else:
+            self.policy = CategoricalPolicy(self.state_dim, self.n_actions, hidden_sizes,
+                                            activation=nn.Tanh(), seed=seed)
+
 
         # stochastic gradient descent
         self.batch_size = batch_size
@@ -97,16 +132,17 @@ class ReinforceDeterministic:
         time_steps = np.empty(K, dtype=np.int32)
 
         # preallocate lists to store states, actions and rewards
-        states, dbts, rewards = [], [], []
+        states, actions, rewards = [], [], []
 
         # reset environment
-        # envpool env
-        if 'EnvPool' in type(self.env).__name__:
-            state, _ = self.env.reset()
 
         # custom vectorized environment
+        if hasattr(self.env.unwrapped, 'is_vectorized'):
+            state, _ = self.env.reset(seed=self.seed, options={'batch_size': K})
+
+        # gym vect env or envpool env
         else:
-            state, info = self.env.reset(seed=self.seed, options={'batch_size': K})
+            state, _ = self.env.reset()
 
         # terminated and done flags
         been_terminated = np.full((K,), False)
@@ -120,17 +156,15 @@ class ReinforceDeterministic:
         while not done.all():
 
             # sample action
-            state_torch = torch.tensor(state, dtype=torch.float32)
-            with torch.no_grad():
-                action = self.policy(state_torch).numpy()
+            state_torch = torch.FloatTensor(state)
+            action, _ = self.policy.sample_action(state_torch)
 
             # save state and action
             states.append(state[idx_mem])
+            actions.append(action[idx_mem])
 
             # step dynamics forward
-            state, r, terminated, truncated, info = self.env.step(action)
-
-            dbts.append(info['dbt'][idx_mem])
+            state, r, terminated, truncated, _ = self.env.step(action)
 
             # update terminated flags
             new_terminated = terminated & ~been_terminated
@@ -158,13 +192,13 @@ class ReinforceDeterministic:
             k += 1
 
         # compute returns
-        trajs_states, trajs_dbts, trajs_rewards, trajs_returns = [], [], [], []
+        trajs_states, trajs_actions, trajs_rewards, trajs_returns = [], [], [], []
 
         for i in range(self.batch_size):
             idx_traj = idx_mem[i]
             idx = time_steps[idx_traj]
             trajs_states.append(np.stack(states)[:idx, i])
-            trajs_dbts.append(np.stack(dbts)[:idx, i])
+            trajs_actions.append(np.stack(actions)[:idx, i])
             trajs_rewards.append(np.stack(rewards)[:idx, i])
 
             # compute initial returns
@@ -175,7 +209,8 @@ class ReinforceDeterministic:
             else: # return_type == 'n-return'
                 trajs_returns.append(cumsum(trajs_rewards[i]))
 
-        return np.vstack(trajs_states), np.vstack(trajs_dbts), \
+        trajs_actions = np.vstack(trajs_actions) if self.is_action_continuous else np.hstack(trajs_actions)
+        return np.vstack(trajs_states), trajs_actions, \
                np.hstack(trajs_returns), initial_returns, time_steps
 
 
@@ -185,29 +220,21 @@ class ReinforceDeterministic:
         '''
 
         # sample trajectories
-        states, dbts, returns, initial_returns, time_steps = self.sample_trajectories()
+        states, actions, returns, initial_returns, time_steps = self.sample_trajectories()
 
         # convert to torch tensors
         states = torch.FloatTensor(states)
-        dbts = torch.FloatTensor(dbts)
+        actions = torch.FloatTensor(actions)
         returns = torch.FloatTensor(returns)
 
-        # compute actions following the policy
-        actions = self.policy.forward(states)
-
         # normalize returns
-        #returns = normalize_array(returns, eps=1e-5)
+        returns = normalize_array(returns, eps=1e-5)
 
-        # compute alternative objective terms
-
-        # policy x \nabla_a r(s, a)
-        a = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * self.env.unwrapped.dt
-
-        # policy x brownian increments
-        b = dot_vect(dbts, actions)
+        # compute log probs
+        _, log_probs = self.policy(states, actions)
 
         # calculate loss
-        phi = a - returns * b
+        phi = - log_probs * returns
 
         # loss and loss variance
         loss = phi.sum() / self.batch_size
@@ -225,21 +252,27 @@ class ReinforceDeterministic:
 
         return loss.detach().numpy(), loss_var, initial_returns, time_steps
 
-
     def sample_loss_on_policy(self, it):
 
         # sample trajectories
-        states, dbts, returns, initial_returns, time_steps = self.sample_trajectories()
+        states, actions, returns, initial_returns, time_steps = self.sample_trajectories()
 
         # initialize memory
-        memory = Memory(
-            size=states.shape[0]+1,
-            state_dim=self.state_dim,
-            action_dim=self.action_dim
-        )
+        if  self.is_action_continuous:
+            memory = Memory(
+                size=states.shape[0]+1,
+                state_dim=self.state_dim,
+                action_dim=self.action_dim
+            )
+        else:
+            memory = Memory(
+                size=states.shape[0]+1,
+                state_dim=self.state_dim,
+                is_action_continuous=False,
+            )
 
         # store experiences in memory
-        memory.store_vectorized(states, dbts, returns=returns)
+        memory.store_vectorized(states, actions, returns=returns)
 
         # sample batch of experiences from memory
         if self.mini_batch_size_type == 'adaptive':
@@ -247,26 +280,17 @@ class ReinforceDeterministic:
         else:
             K_mini = self.mini_batch_size
         batch = memory.sample_batch(K_mini)
-
-        # compute actions following the policy
-        actions = self.policy.forward(batch['states'])
+        _, log_probs = self.policy.forward(batch['states'], batch['actions'])
 
         # estimate mean trajectory length
         mean_length = time_steps.mean() if self.estimate_z else 1
 
         # normalize returns
         returns = batch['returns']
-        #returns = normalize_array(returns, eps=1e-5)
-
-        # compute alternative objective terms
-        # policy x \nabla_a r(s, a)
-        a = 0.5 * torch.linalg.norm(actions, axis=1).pow(2) * self.env.unwrapped.dt
-
-        # policy x brownian increments
-        b = dot_vect(batch['dbts'], actions)
+        returns = normalize_array(returns, eps=1e-5)
 
         # calculate loss
-        phi = a - batch['returns'] * b
+        phi = - (log_probs * returns)
         loss = phi.mean()
         with torch.no_grad():
             loss_var = phi.var().numpy()
@@ -295,7 +319,7 @@ class ReinforceDeterministic:
     def run_reinforce(self, backup_freq=None, live_plot_freq=None, log_freq=100, load=False):
 
         # get dir path
-        dir_path = get_reinforce_det_dir_path(**self.__dict__)
+        dir_path = get_reinforce_stoch_dir_path(**self.__dict__)
 
         # load results
         if load:
@@ -312,7 +336,7 @@ class ReinforceDeterministic:
             eval_batch_size=self.batch_size,
             n_iterations=self.n_grad_iterations,
             iter_str='grad. it.:',
-            policy_type='det',
+            policy_type='stoch',
             track_loss=True,
             track_ct=True,
             track_lr=True if self.scheduled_lr else False,

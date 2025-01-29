@@ -4,7 +4,7 @@ import shutil
 import numpy as np
 import torch
 
-from rl_for_gym.utils.config import PROJECT_ROOT_DIR, DATA_ROOT_DIR
+from rl_random_times.utils.config import PROJECT_ROOT_DIR, DATA_ROOT_DIR
 
 def get_project_dir():
     ''' returns the absolute path of the repository's directory

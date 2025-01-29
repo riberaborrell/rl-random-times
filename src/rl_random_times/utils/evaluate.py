@@ -3,8 +3,8 @@ import time
 import numpy as np
 import torch
 
-from rl_for_gym.utils.numeric import discount_cumsum
-from rl_for_gym.utils.path import load_data, save_data, get_dir_path
+from rl_random_times.utils.numeric import discount_cumsum
+from rl_random_times.utils.path import load_data, save_data, get_dir_path
 
 def simulate_random_policy_episode(env, seed=1, log_freq=None, time_sleep=None):
 
@@ -52,6 +52,7 @@ def simulate_learnt_policy_episode(env, policy, seed=1, log_freq=None, time_slee
         done = terminated or truncated
 
         # log
+        #k = env.get_wrapper_attr('_elapsed_steps')
         k = env._elapsed_steps
         if log_freq is not None and (k + 1) % log_freq == 0:
             print(k, obs, r, done, truncated)
