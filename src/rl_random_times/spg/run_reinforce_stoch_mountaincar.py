@@ -1,87 +1,59 @@
 import gymnasium as gym
-
+from gymnasium.wrappers import TimeLimit
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 
-from rl_random_times.base_parser import get_base_parser
-from rl_random_times.reinforce_discrete import reinforce
+from rl_random_times.spg.stochastic_pg_core import ReinforceStochastic
+from rl_random_times.wrappers.modified_mountaincar import ModifiedMountainCarEnv
+from rl_random_times.utils.base_parser import get_base_parser
+from rl_random_times.utils.plots import plot_y_per_grad_iteration
 
-def get_parser():
-    parser = get_base_parser()
-    parser.description = ''
-    return parser
+def make_env(env_id):
+    def _init():
+        env = gym.make(env_id)
+        env = ModifiedMountainCarEnv(env)
+        env = TimeLimit(env, max_episode_steps=int(1e6))
+        return env
+    return _init
 
 def main():
-    args = get_parser().parse_args()
+    parser = get_base_parser()
+    args = parser.parse_args()
 
-    # initialize environment 
-    from gymnasium.wrappers import TimeLimit
-    env = gym.make('MountainCar-v0')
-    env = TimeLimit(env, max_episode_steps=1000)
-
-    # run reinforce
-    returns, time_steps, model = reinforce(
-        env,
-        gamma=args.gamma,
-        lr=args.lr,
-        n_episodes=args.n_episodes,
-        batch_size=args.batch_size,
-        seed=args.seed,
-        render=args.render,
+    # create vectorized environment
+    env = gym.vector.SyncVectorEnv(
+        [make_env("MountainCarContinuous-v0") for _ in range(args.batch_size)]
     )
-    # plot action probability distributions
 
-    # get flat discretized observation space
-    h_x, h_y = 0.1, 0.001
-    slice_x = slice(env.observation_space.low[0], env.observation_space.high[0]+h_x, h_x)
-    slice_y = slice(env.observation_space.low[1], env.observation_space.high[1]+h_y, h_y)
-    observation_space_h = np.moveaxis(np.mgrid[slice_x, slice_y], 0, -1)
-    Nx = observation_space_h.shape[0]
-    Ny = observation_space_h.shape[1]
-    N = Nx*Ny
-    observation_space_h_flat = observation_space_h.reshape(N, 2)
+    # environment name
+    env_name = env.envs[0].spec.id
 
-    # compute action probability distributions
-    actions_probs = model.forward(observation_space_h_flat).detach().numpy().reshape(Nx, Ny, 3)
-    most_prob_actions = np.argmax(actions_probs, axis=2)
+    # reinforce stochastic agent
+    agent = ReinforceStochastic(
+        env, env_name, env.envs[0]._max_episode_steps, args.expectation_type, args.return_type, args.gamma,
+        args.n_layers, args.d_hidden, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
+        args.gaussian_policy_type, args.policy_noise, args.estimate_z,
+        args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,
+        args.optim_type, args.scheduled_lr, args.lr_final,
+    )
 
-    extent = env.observation_space.low[0], env.observation_space.high[0], \
-             env.observation_space.low[1], env.observation_space.high[1]
-    plt.imshow(most_prob_actions, extent=extent)
-    #cmap = cm.get_cmap('Paired_r', 3)
-    #plt.imshow(most_prob_actions, extent=extent, cmap=cmap)
-    plt.colorbar()
-    plt.show()
+    # run
+    succ, data = agent.run_reinforce(
+        log_freq=args.log_freq,
+        backup_freq=args.backup_freq,
+        live_plot_freq=args.live_plot_freq,
+        load=args.load,
+    )
+    env.close()
 
-    return
+    # do plots
+    if not args.plot or not succ:
+        return
 
-
-    window = args.batch_size
-
-    # plot returns
-    smoothed_returns = [
-        np.mean(returns[i-window:i+1]) if i > window
-        else np.mean(returns[:i+1]) for i in range(len(returns))
-    ]
-    plt.figure(figsize=(12, 8))
-    plt.plot(returns)
-    plt.plot(smoothed_returns)
-    plt.ylabel('Total Returns')
-    plt.xlabel('Episodes')
-    plt.show()
-
-    # plot time steps
-    smoothed_time_steps = [
-        np.mean(time_steps[i-window:i+1]) if i > window
-        else np.mean(time_steps[:i+1]) for i in range(len(time_steps))
-    ]
-    plt.figure(figsize=(12, 8))
-    plt.plot(time_steps)
-    plt.plot(smoothed_time_steps)
-    plt.ylabel('Total Time steps')
-    plt.xlabel('Episodes')
-    plt.show()
+    # plot returns and time steps
+    x = np.arange(args.n_grad_iterations + 1)
+    plot_y_per_grad_iteration(x, data['mean_returns'], title='Mean return', run_window=10, legend=True)
+    plot_y_per_grad_iteration(x, data['mean_lengths'], title='Mean time steps', run_window=10)
+    plot_y_per_grad_iteration(x, data['losses'], title='Losses', run_window=100)
 
 
 if __name__ == '__main__':
