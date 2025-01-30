@@ -2,19 +2,21 @@
 This Python repository contains the implementation of reinforcement learning algorithms with random time horizons.
 
 ## Contains
-- Policy gradient (PG) with (random time horizon) trajectories expectations and q-value estimated by the returns (REINFORCE algorithm for stochastic policies).
-- Policy gradient (PG) with on-policy expectations with Z-factor estimated (unbiased) and with Z-factor neglected (biased).
+- (random-time) trajectory-based policy gradient (*trajectory PG*) with q-value estimated by the returns (REINFORCE algorithm with random time horizons).
+- (on-policy) state-space policy gradient (*state-space PG*) with with Z-factor estimated (unbiased) and with Z-factor neglected (biased).
+- (random-time) trajectory and model-based policy gradient for deterministic policies (*model-based trajectory DPG*). The value function is estimated by the returns (REINFORCE algorithm with random time horizons and deterministic policies).
+- (on-policy) state-space and model-based policy gradient for deterministic policies (*model-based, state-space DPG*) with with Z-factor estimated (unbiased) and with Z-factor neglected (biased).
 
 ## Install
 
 1. clone the repo 
 ```
-git clone git@github.com:riberaborrell/rl-for-gym.git
+git clone git@github.com:riberaborrell/rl-random-times.git
 ```
 
 2. move inside the directory, create virtual environment and install required packages
 ```
-cd rl-for-gym
+cd rl-random-times
 make venv
 ```
 
@@ -25,24 +27,54 @@ source venv/bin/activate
 
 4. create config.py file and edit it
 ```
-cp src/rl_for_gym/config_template.py src/rl_for_gym/config.py
+cp src/rl_random_times/config_template.py src/rl_random_times/config.py
+```
+
+## Dependencies
+1. clone the gym-sde-is repo
+```
+cd ../
+git clone git@github.com:riberaborrell/gym-sde-is.git
+```
+2. Pip install the gym-sde-is repo locally
+```
+pip install -e gym-sde-is
 ```
 
 ## Usage
 ### Algorithms
-1. PG with random time horizon trajectories (batch version of the original REINFORCE algorithm for random time horizons)
+#### Stochastic policies
+1. Trajectory PG
 ```
-$ python src/rl_for_gym/spg/run_reinforce_stoch.py --expectation-type random-time --return-type initial-return
-```
-
-2. PG with on-policy expectations unbiased (z-factor estimated)
-```
-$ python src/rl_for_gym/spg/run_reinforce_stoch.py --expectation-type on-policy --return-type n-return --mini-batch-size 0.1 --estimate-z
+$ python src/rl_random_times/spg/run_reinforce_stoch.py --expectation-type random-time --return-type initial-return
 ```
 
-3. PG with on-policy expectations biased (z-factor neglected)
+2.  State-space PG unbiased (i.e. z-factor is estimated).
 ```
-$ python src/rl_for_gym/spg/run_reinforce_stoch.py --expectation-type on-policy --return-type n-return --mini-batch-size 0.1
+$ python src/rl_random_times/spg/run_reinforce_stoch.py --expectation-type on-policy --return-type n-return --mini-batch-size 0.1 --estimate-z
+```
+
+3. State-space PG biased (i.e. z-factor neglected).
+```
+$ python src/rl_random_times/spg/run_reinforce_stoch.py --expectation-type on-policy --return-type n-return --mini-batch-size 0.1
+```
+#### Deterministic policies
+4. Model-based trajectory DPG for the gym-sde-is environment
+```
+$ python src/rl_random_times/dpg/run_modelbased_dpg_sdeis_dwnd.py
+ --expectation-type random-time --return-type initial-return
+```
+
+5. Model-based and State-space DPG unbiased (i.e. z-factor is estimated).
+
+```
+$ python src/rl_random_times/dpg/run_modelbased_dpg_sdeis_dwnd.py --expectation-type on-policy --return-type n-return --mini-batch-size 0.1 --estimate-z
+```
+
+
+6. Model-based and State-space DPG biased (i.e. z-factor is neglected).
+```
+$ python src/rl_random_times/dpg/run_modelbased_dpg_sdeis_dwnd.py --expectation-type on-policy --return-type n-return --mini-batch-size 0.1
 ```
 
 ### Parameters
@@ -64,7 +96,7 @@ $ python path/to/algorithm --policy-noise 1.0 --gaussian-policy-type learnt-cov 
 $ python path/to/algorithm --optim-type adam --batch-size 100 --lr 0.001 --n-grad-iterations 1000 
 ```
 
-* on-policy expectation: the algorithm samples K trajectories and stores them (the experiences i.e. states, action and reward tuple) in a memory. The on-policy expectation samples from this memory. If K_type = 'adaptive' (default), K_mini represents the percentage of data in the memory. Else, K_type = 'constant', K_mini represents the absolute number of experiences sampled.
+* (on-policy) state-space expectation: the algorithm samples K trajectories and stores them (the experiences i.e. states, action and reward tuples for each time step) in a memory. The (on-policy) state-space expectation samples from this memory. If K_type = 'adaptive' (default), K_mini represents the percentage of data in the memory. Else, K_type = 'constant', K_mini represents the absolute number of experiences sampled.
 ```
 $ python path/to/algorithm --mini-batch-size-type adaptive --mini-batch-size 0.2 
 ```
