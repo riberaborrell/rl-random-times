@@ -163,17 +163,17 @@ class ModelBasedDeterministicPG:
         for i in range(self.batch_size):
             idx_traj = idx_mem[i]
             idx = time_steps[idx_traj]
-            trajs_states.append(np.stack(states)[:idx, i])
-            trajs_dbts.append(np.stack(dbts)[:idx, i])
+            trajs_states.append(np.stack(states)[:idx-1, i])
+            trajs_dbts.append(np.stack(dbts)[:idx-1, i])
             trajs_rewards.append(np.stack(rewards)[:idx, i])
 
             # compute initial returns
             if self.return_type == 'initial-return':
-                trajs_returns.append(np.full(time_steps[idx_traj], initial_returns[idx_traj]))
+                trajs_returns.append(np.full(time_steps[idx_traj]-1, initial_returns[idx_traj]))
 
             # compute n-step returns
             else: # return_type == 'n-return'
-                trajs_returns.append(cumsum(trajs_rewards[i]))
+                trajs_returns.append(cumsum(trajs_rewards[i])[1:])
 
         return np.vstack(trajs_states), np.vstack(trajs_dbts), \
                np.hstack(trajs_returns), initial_returns, time_steps
