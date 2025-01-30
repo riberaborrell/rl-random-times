@@ -66,19 +66,20 @@ def get_base_parser():
         '--expectation-type',
         choices=['random-time', 'on-policy'],
         default='random-time',
-        help='Set type of expectation. Default: random-time',
+        help='Set type of expectation in the policy gradients. (Random-time) trajectory prespective \
+              vs (on-policy) state-space prespective. Default: random-time',
     )
     parser.add_argument(
         '--return-type',
         choices=['initial-return', 'n-return'],
         default='initial-return',
-        help='Set type of return used. Default: initial-return',
+        help='Set type of return used. (initial return) G_0 vs (n-step return) G_n. Default: initial-return',
     )
     parser.add_argument(
         '--n-layers',
         type=int,
         default=2,
-        help='Set total number of layers. Default: 2',
+        help='Set total number of layers for a feed-forward NN. Default: 2',
     )
     parser.add_argument(
         '--d-hidden',
@@ -91,7 +92,7 @@ def get_base_parser():
         type=str,
         default='learnt-cov',
         choices=['const-cov', 'scheduled', 'learnt-cov'],
-        help='Set if the covariance of the stochastic gaussian policy is constant, scheduled, or learnt. Default: const-cov',
+        help='Choose if the covariance of the stochastic gaussian policy is constant, scheduled, or learnt. Default: const-cov',
     )
     parser.add_argument(
         '--policy-noise',
@@ -108,20 +109,20 @@ def get_base_parser():
     parser.add_argument(
         '--batch-size-z',
         type=int,
-        default=1000,
-        help='Set number of trajectories in each batch to estimate the z-factor. Default: 1000',
+        default=10,
+        help='Set number of trajectories in each batch to estimate the z-factor. Default: 10',
     )
     parser.add_argument(
         '--mini-batch-size',
         type=int,
         default=None,
-        help='Set mini batch size for on-policy expectations. Default: None',
+        help='Set mini batch size for on-policy state-space expectations. Default: None',
     )
     parser.add_argument(
         '--mini-batch-size-type',
         choices=['constant', 'adaptive'],
         default='adaptive',
-        help='Set type of mini batch size. Constant or adaptive relative to the \
+        help='Set type of mini batch size. Constant or adaptive i.e. relative to the \
               memory size. Default: constant',
     )
     parser.add_argument(

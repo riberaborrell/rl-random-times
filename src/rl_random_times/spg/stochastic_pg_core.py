@@ -85,7 +85,6 @@ class ReinforceStochastic:
             self.policy = CategoricalPolicy(self.state_dim, self.n_actions, hidden_sizes,
                                             activation=nn.Tanh(), seed=seed)
 
-
         # stochastic gradient descent
         self.batch_size = batch_size
         if self.expectation_type == 'on-policy':
@@ -214,9 +213,9 @@ class ReinforceStochastic:
                np.hstack(trajs_returns), initial_returns, time_steps
 
 
-    def sample_loss_random_time(self, it):
-        ''' Sample and compute loss function corresponding to the policy gradient with
-            random time expectation. Also update the policy parameters.
+    def sample_loss_random_time_trajectories(self, it):
+        ''' Sample and compute alternative loss function corresponding to (random time) trajectory-based
+            policy gradient. Compute gradients and update the policy parameters.
         '''
 
         # sample trajectories
@@ -252,7 +251,10 @@ class ReinforceStochastic:
 
         return loss.detach().numpy(), loss_var, initial_returns, time_steps
 
-    def sample_loss_on_policy(self, it):
+    def sample_loss_on_policy_state(self, it):
+        ''' Sample and compute alternative loss function corresponding to (on-policy) state-space-based
+            policy gradient. Compute gradients and update the policy parameters.
+        '''
 
         # sample trajectories
         states, actions, returns, initial_returns, time_steps = self.sample_trajectories()
@@ -363,9 +365,9 @@ class ReinforceStochastic:
 
             # sample loss function
             if self.expectation_type == 'random-time':
-                loss, loss_var, returns, time_steps = self.sample_loss_random_time(i)
+                loss, loss_var, returns, time_steps = self.sample_loss_random_time_trajectories(i)
             else: #expectation_type == 'on-policy':
-                loss, loss_var, returns, time_steps = self.sample_loss_on_policy(i)
+                loss, loss_var, returns, time_steps = self.sample_loss_on_policy_state(i)
 
             # end timer
             ct_final = time.time()

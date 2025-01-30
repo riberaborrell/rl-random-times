@@ -179,9 +179,9 @@ class ModelBasedDeterministicPG:
                np.hstack(trajs_returns), initial_returns, time_steps
 
 
-    def sample_loss_random_time(self, it):
-        ''' Sample and compute loss function corresponding to the policy gradient with
-            random time expectation. Also update the policy parameters.
+    def sample_loss_random_time_trajectories(self, it):
+        ''' Sample and compute alternative loss function corresponding to the (random-time)
+            trajectory-based policy gradient. Compute gradient and update the policy parameters.
         '''
 
         # sample trajectories
@@ -226,7 +226,11 @@ class ModelBasedDeterministicPG:
         return loss.detach().numpy(), loss_var, initial_returns, time_steps
 
 
-    def sample_loss_on_policy(self, it):
+    def sample_loss_on_policy_state(self, it):
+        ''' Sample and compute alternative loss function corresponding to the (on-policy)
+            state-based policy gradient. Compute gradient and update the policy parameters.
+        '''
+
 
         # sample trajectories
         states, dbts, returns, initial_returns, time_steps = self.sample_trajectories()
@@ -339,9 +343,9 @@ class ModelBasedDeterministicPG:
 
             # sample loss function
             if self.expectation_type == 'random-time':
-                loss, loss_var, returns, time_steps = self.sample_loss_random_time(i)
+                loss, loss_var, returns, time_steps = self.sample_loss_random_time_trajectories(i)
             else: #expectation_type == 'on-policy':
-                loss, loss_var, returns, time_steps = self.sample_loss_on_policy(i)
+                loss, loss_var, returns, time_steps = self.sample_loss_on_policy_state(i)
 
             # end timer
             ct_final = time.time()
