@@ -23,7 +23,8 @@ def get_plot_function(ax, plot_scale):
         raise ValueError('plot_scale must be one of: lineal, semilogx, semilogy, loglog')
 
 def plot_y_per_x(x, y, run_window=1, hlines=None, title='', plot_scale='linear',
-                 xlabel='', xlim=None, ylim=None, legend=False, loc=None, file_path=None):
+                 xlabel='', xlim=None, ylim=None, legend=False, loc=None,
+                 file_path=None, kwargs_layout={}):
 
     run_mean_y = compute_running_mean(y, run_window) if run_window > 1 else None
     fig, ax = plt.subplots()
@@ -39,14 +40,14 @@ def plot_y_per_x(x, y, run_window=1, hlines=None, title='', plot_scale='linear',
         for (hline, color, ls, label) in hlines:
             ax.axhline(y=hline, c=color, ls=ls, label=label)
     if legend: plt.legend(loc=loc)
+    plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
-    plt.tight_layout()
 
 def plot_y_per_episode(x, y, **kwargs):
     plot_y_per_x(x, y, xlabel='Episodes', **kwargs)
 
 def plot_y_per_grad_iteration(x, y, **kwargs):
-    plot_y_per_x(x, y, xlabel='Gradient iterations.', **kwargs)
+    plot_y_per_x(x, y, xlabel='Gradient iterations', **kwargs)
 
 def plot_y_per_time_steps(x, y, **kwargs):
     plot_y_per_x(x, y, xlabel='Time steps', **kwargs)
@@ -56,7 +57,7 @@ def plot_y_per_ct(x, y, **kwargs):
 
 def plot_ys_per_x(x, ys, run_window=1, hlines=None, title='', plot_scale='linear',
                   xlabel='', xlim=None, ylim=None, labels=None, colors=None,
-                  legend=False, loc=None, file_path=None):
+                  legend=False, loc=None, file_path=None, kwargs_layout={}):
     n_lines = len(ys)
     if labels is None:
         labels = [None for i in range(n_lines)]
@@ -81,8 +82,8 @@ def plot_ys_per_x(x, ys, run_window=1, hlines=None, title='', plot_scale='linear
         for (hline, color, ls, label) in hlines:
             ax.axhline(y=hline, c=color, ls=ls, label=label, lw=4.)
     if legend: plt.legend(loc=loc)
+    plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
-    plt.tight_layout()
 
 def plot_ys_per_episode(x, ys, **kwargs):
     plot_ys_per_x(x, ys, xlabel='Episodes', **kwargs)
@@ -97,7 +98,8 @@ def plot_ys_per_ct(x, ys, **kwargs):
     plot_ys_per_x(x, ys, xlabel='Computational time', **kwargs)
 
 def plot_y_avg_per_x(x, ys, hlines=None, title: str = '', xlabel: str = '', xlim=None, ylim=None,
-                     plot_scale='linear', legend: bool = False, loc: str = 'upper right', file_path=None):
+                     plot_scale='linear', legend: bool = False, loc: str = 'upper right',
+                     file_path=None, kwargs_layout={}):
     y = np.mean(ys, axis=0)
     error = np.sqrt(np.var(ys, axis=0))
     fig, ax = plt.subplots()
@@ -112,8 +114,8 @@ def plot_y_avg_per_x(x, ys, hlines=None, title: str = '', xlabel: str = '', xlim
         for (hline, color, ls, label) in hlines:
             ax.axhline(y=hline, c=color, ls=ls, label=label)
     if legend: plt.legend(loc=loc)
+    plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
-    plt.tight_layout()
 
 def plot_y_avg_per_episode(x, ys, **kwargs):
     plot_y_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
@@ -129,7 +131,7 @@ def plot_y_avg_per_ct(x, ys, **kwargs):
 
 def plot_ys_avg_per_x(x, ys, plot_std=True, hlines=None, title: str = '', xlabel: str = '', xlim=None, ylim=None,
                       plot_scale='linear', labels=None, colors=None, legend: bool = False,
-                      loc: str = 'upper right', file_path=None):
+                      loc: str = 'upper right', file_path=None, kwargs_layout={}):
     n_lines = len(ys)
     if labels is None:
         labels = [None for i in range(n_lines)]
@@ -154,8 +156,8 @@ def plot_ys_avg_per_x(x, ys, plot_std=True, hlines=None, title: str = '', xlabel
         for (hline, color, ls, label) in hlines:
             ax.axhline(y=hline, c=color, ls=ls, label=label)
     if legend: plt.legend(loc=loc)
+    plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
-    plt.tight_layout()
 
 def plot_ys_avg_per_episode(x, ys, **kwargs):
     #plot_ys_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
@@ -172,7 +174,7 @@ def plot_ys_avg_per_ct(x, ys, **kwargs):
 
 
 def plot_lr_grid_search(lrs, ys, title='', plot_scale='loglog', xlim=None, ylim=None, colors=None,
-                        labels=None, ls='-', sign=1, file_path=None):
+                        labels=None, ls='-', sign=1, file_path=None, kwargs_layout={}):
     n_seeds = ys[0].shape[0]
     fig, ax = plt.subplots()
     plot_fn = get_plot_function(ax, plot_scale)
@@ -188,8 +190,8 @@ def plot_lr_grid_search(lrs, ys, title='', plot_scale='loglog', xlim=None, ylim=
                 plot_fn(lrs[i], sign*ys[i][j], ls=ls, marker='.', ms=15, c=colors[i][j], alpha=0.8)
     if labels is not None:
         ax.legend()
+    plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
-    plt.tight_layout()
 
 def plot_fht_histogram(time_steps, n_steps_lim=None):
 
