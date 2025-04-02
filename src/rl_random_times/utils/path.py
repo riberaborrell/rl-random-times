@@ -72,16 +72,22 @@ def get_dir_path(env_id: str, algorithm_name: str, param_str: str = '') -> str:
 
     return dir_path
 
-def get_reacher_params_str(threshold_dist, threshold_vel, reward_ctrl_weight):
-    ''' get string with the Reacher environment parameters.'''
-    return 'threshold-dist{:.1e}_threshold-vel{:.1e}_reward-ctrl-weight{:.1e}'.format(
-        threshold_dist, threshold_vel, reward_ctrl_weight,
+def get_hopper_env_str(env_id, healthy_reward, forward_reward, ctrl_cost):
+    ''' get string with the Hopper environment id, version and parameters.'''
+    return '{}__healthy-reward{:.1e}_forward-reward{:.1e}_ctrl-cost{:.1e}'.format(
+        env_id, healthy_reward, forward_reward, ctrl_cost,
     )
 
-def get_swimmer_params_str(threshold_fwd_dist):
+def get_reacher_env_str(env_id, threshold_dist, threshold_vel, reward_ctrl_weight):
+    ''' get string with the Reacher environment parameters.'''
+    return '{}__threshold-dist{:.1e}_threshold-vel{:.1e}_reward-ctrl-weight{:.1e}'.format(
+        env_id, threshold_dist, threshold_vel, reward_ctrl_weight,
+    )
+
+def get_swimmer_env_str(env_id, threshold_fwd_dist):
     ''' get string with the Swimmer environment parameters.'''
-    return 'threshold-fwd-dist{:.1e}'.format(
-        threshold_fwd_dist,
+    return '{}__threshold-fwd-dist{:.1e}'.format(
+        env_id, threshold_fwd_dist,
     )
 
 def get_model_arch_str(**kwargs):
@@ -219,6 +225,17 @@ def get_reinforce_det_dir_path(**kwargs):
               + get_lr_and_batch_size_str(**kwargs) \
               + 'optim-{}_'.format(kwargs['optim_type']) \
               + get_iter_str(**kwargs) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
+
+def get_ppo_dir_path(**kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['n_steps_lim']) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_seed_str(**kwargs)
 
     return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
