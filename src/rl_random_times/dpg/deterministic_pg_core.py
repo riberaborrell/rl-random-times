@@ -313,7 +313,6 @@ class ModelBasedDeterministicPG:
         # create object to store the is statistics of the learning
         stats = Statistics(
             eval_freq=1,
-            eval_batch_size=self.batch_size,
             n_iterations=self.n_grad_iterations,
             iter_str='grad. it.:',
             policy_type='det',

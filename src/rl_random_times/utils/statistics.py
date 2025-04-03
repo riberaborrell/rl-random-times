@@ -17,15 +17,14 @@ def compute_std_and_re(mean: float, var: float):
 
 class Statistics(object):
 
-    def __init__(self, eval_freq, eval_batch_size, n_iterations, policy_type='det', iter_str='it.:',
+    def __init__(self, eval_freq, n_iterations, policy_type='det', iter_str='it.:',
                  track_loss=False, track_ct=False, track_lr=False):
 
         assert policy_type in ['det', 'stoch', 'stoch-mean'], 'Policy type not recognized'
         self.policy_type = policy_type
 
-        # frequency of evaluation and batch size
+        # frequency of evaluation
         self.eval_freq = eval_freq
-        self.eval_batch_size = eval_batch_size
 
         # number of iterations (episodes, grad. iterations or total steps)
         self.n_iterations = n_iterations
