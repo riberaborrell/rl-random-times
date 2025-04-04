@@ -119,12 +119,6 @@ def get_base_parser():
         help='Set number of trajectories in each batch to estimate the z-factor',
     )
     parser.add_argument(
-        '--n-mini-batches',
-        type=int,
-        default=32,
-        help='The number of mini-batches',
-    )
-    parser.add_argument(
         '--mini-batch-size',
         type=int,
         default=None,

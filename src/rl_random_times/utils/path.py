@@ -236,6 +236,14 @@ def get_ppo_dir_path(**kwargs):
     # set parameters string
     param_str = 'n-steps-lim{:.0e}_'.format(kwargs['n_steps_lim']) \
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + 'policy-noise-init{:.2f}_'.format(kwargs['policy_noise_init']) \
+              + 'n-envs{:d}_'.format(kwargs['n_envs']) \
+              + 'n-total-steps{:.0e}_'.format(kwargs['n_total_steps']) \
+              + 'lr{:.1e}_'.format(kwargs['lr']) \
+              + 'optim-{}_'.format(kwargs['optim_type']) \
+              + 'n-mini-batches{:d}_'.format(kwargs['n_mini_batches']) \
+              + 'update-epochs{:d}_'.format(kwargs['update_epochs']) \
               + get_seed_str(**kwargs)
 
     return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
