@@ -14,31 +14,31 @@ def main():
         '--d',
         type=int,
         default=1,
-        help='Dimension of the environment. Default: 1',
+        help='the dimension of the environment',
     )
     parser.add_argument(
         '--alpha-i',
         type=float,
         default=1.,
-        help='Set i-th component of the barrier height parameter of the given potential. Default: 1.',
+        help='the i-th component of the barrier height parameter of the given potential',
     )
     parser.add_argument(
         '--alpha-j',
         type=float,
         default=1.,
-        help='Set j-th component of the barrier height parameter of the given potential. Default: 1.',
+        help='the j-th component of the barrier height parameter of the given potential',
     )
     parser.add_argument(
         '--alpha-k',
         type=float,
         default=1.,
-        help='Set k-th component of the barrier height parameter of the given potential. Default: 1.',
+        help='the k-th component of the barrier height parameter of the given potential',
     )
     parser.add_argument(
         '--beta',
         type=float,
         default=1.,
-        help='Set inverse of the temperature. Default: 1.',
+        help='the inverse of the temperature',
     )
     args = parser.parse_args()
 
@@ -59,9 +59,9 @@ def main():
     # model-based deterministic pg agent 
     agent = ModelBasedDeterministicPG(
         env, env.unwrapped.__str__(), env._max_episode_steps, args.expectation_type, args.return_type, args.gamma,
-        args.n_layers, args.d_hidden, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
+        args.n_layers, args.d_hidden_layers, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
         args.estimate_z, args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,
-        args.optim_type, args.scheduled_lr, args.lr_final,
+        args.optim_type, args.scheduled_lr, args.lr_final, args.norm_returns,
     )
 
     # run

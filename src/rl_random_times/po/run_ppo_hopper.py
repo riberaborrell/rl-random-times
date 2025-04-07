@@ -1,9 +1,5 @@
-import os
-import time
-
 import gymnasium as gym
 import numpy as np
-import torch
 
 from rl_random_times.po.ppo_core import PPO
 from rl_random_times.po.ppo_parser import add_ppo_arguments
@@ -69,13 +65,13 @@ def main():
     # PPO agent
     agent = PPO(
         env,
-        env_id=env_name,
+        env_name=env_name,
         n_envs=args.n_envs,
         n_steps_lim=args.n_steps_lim,
         gamma=args.gamma,
         n_total_steps=args.n_total_steps,
         n_layers=args.n_layers,
-        d_hidden_layers=args.d_hidden,
+        d_hidden_layers=args.d_hidden_layers,
         policy_noise_init=args.policy_noise,
         n_mini_batches=args.n_mini_batches,
         lr=args.lr,

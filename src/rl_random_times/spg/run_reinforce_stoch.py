@@ -3,11 +3,12 @@ import gymnasium as gym
 import numpy as np
 
 from rl_random_times.spg.stochastic_pg_core import ReinforceStochastic
+from rl_random_times.spg.reinforce_parser import add_reinforce_arguments
 from rl_random_times.utils.base_parser import get_base_parser
 from rl_random_times.utils.plots import plot_y_per_grad_iteration
 
 def main():
-    args = get_base_parser().parse_args()
+    args = add_reinforce_arguments(get_base_parser()).parse_args()
 
     # environment parameters
     kwargs = {}
@@ -30,10 +31,10 @@ def main():
     # reinforce stochastic agent
     agent = ReinforceStochastic(
         env, args.env_id, args.n_steps_lim, args.expectation_type, args.return_type, args.gamma,
-        args.n_layers, args.d_hidden, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
+        args.n_layers, args.d_hidden_layers, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
         args.gaussian_policy_type, args.policy_noise, args.estimate_z,
         args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,
-        args.optim_type, args.scheduled_lr, args.lr_final,
+        args.optim_type, args.scheduled_lr, args.lr_final, args.norm_returns,
     )
 
     # run

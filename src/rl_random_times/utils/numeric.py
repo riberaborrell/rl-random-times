@@ -1,6 +1,7 @@
 from typing import Optional, Union
 
 import numpy as np
+import scipy
 import torch
 
 # vectorized operations
@@ -65,4 +66,20 @@ def normalize_array(x: Union[np.ndarray, torch.Tensor], eps: Optional[float] = 1
         and dividing by the standard deviation.
     '''
     assert x.ndim == 1, 'Input must be a 1D array'
-    return (x - x.mean()) / (x.std() + 1e-5)
+    return (x - x.mean()) / (x.std() + eps)
+
+def interpolate_array(xs, ys, n_points=100):
+
+    assert xs.ndim == ys.ndim == 2, ''
+
+    common_x = np.linspace(xs.min(axis=1).max(), xs.max(axis=1).min(), n_points)
+
+    # interpolate y-array onto the common x grid
+    interpolated_y = []
+    for x, y in zip(xs, ys):
+        interp_func = scipy.interpolate.interp1d(
+            x, y, kind='linear', bounds_error=False, fill_value="extrapolate",
+        )
+        interpolated_y.append(interp_func(common_x))
+
+    return common_x, np.array(interpolated_y)

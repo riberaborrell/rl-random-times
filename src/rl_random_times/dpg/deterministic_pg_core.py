@@ -16,10 +16,10 @@ from rl_random_times.utils.numeric import dot_vect, cumsum_numpy as cumsum, norm
 from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_reinforce_det_dir_path
 
 class ModelBasedDeterministicPG:
-    def __init__(self, env, env_id, n_steps_lim, expectation_type, return_type, gamma,
+    def __init__(self, env, env_name, n_steps_lim, expectation_type, return_type, gamma,
                  n_layers, d_hidden_layer, batch_size, lr, n_grad_iterations, seed,
                  estimate_z=None, batch_size_z=None, mini_batch_size=None, mini_batch_size_type='constant', optim_type='adam',
-                 scheduled_lr=False, lr_final=None):
+                 scheduled_lr=False, lr_final=None, norm_returns=False):
 
         assert isinstance(env.action_space, gym.spaces.Box), 'Action space must be continuous.'
 
@@ -27,7 +27,7 @@ class ModelBasedDeterministicPG:
         self.agent = 'reinforce-det-{}'.format(expectation_type)
 
         # environment and state and action dimension
-        self.env_id = env_id
+        self.env_name = env_name
         self.env = env
         self.n_steps_lim = n_steps_lim
 
@@ -38,6 +38,7 @@ class ModelBasedDeterministicPG:
         # expectation type and return type
         self.expectation_type = expectation_type
         self.return_type = return_type
+        self.norm_returns = norm_returns
 
         # discount
         self.gamma = gamma
@@ -196,7 +197,8 @@ class ModelBasedDeterministicPG:
         actions = self.policy.forward(states)
 
         # normalize returns
-        #returns = normalize_array(returns, eps=1e-5)
+        if self.norm_returns:
+            returns = normalize_array(returns, eps=1e-5)
 
         # compute alternative objective terms
 
@@ -260,7 +262,8 @@ class ModelBasedDeterministicPG:
 
         # normalize returns
         returns = batch['returns']
-        #returns = normalize_array(returns, eps=1e-5)
+        if self.norm_returns:
+            returns = normalize_array(returns, eps=1e-5)
 
         # compute alternative objective terms
         # policy x \nabla_a r(s, a)

@@ -1,22 +1,16 @@
 
 def add_ppo_arguments(parser):
     parser.add_argument(
-        '--n-iterations',
-        type=int,
-        default=1000,
-        help='Set number of gradient iterations',
-    )
-    parser.add_argument(
         '--n-mini-batches',
         type=int,
         default=32,
-        help='The number of mini-batches',
+        help='the number of mini-batches',
     )
     parser.add_argument(
         '--anneal-lr',
         type=bool,
         default=True,
-        help='Toggle learning rate annealing for policy and value networks'
+        help='toggle learning rate annealing for policy and value networks'
     )
     parser.add_argument(
         '--gae-lambda',
@@ -31,12 +25,6 @@ def add_ppo_arguments(parser):
         help='the K epochs to update the policy'
     )
     parser.add_argument(
-        '--norm-adv',
-        type=bool,
-        default=True,
-        help='Toggles advantages normalization'
-    )
-    parser.add_argument(
         '--clip-coef',
         type=float,
         default=0.2,
@@ -46,7 +34,7 @@ def add_ppo_arguments(parser):
         '--clip-vloss',
         type=bool,
         default=True,
-        help='Toggles whether or not to use a clipped loss for the value function, as per the paper',
+        help='toggles whether or not to use a clipped loss for the value function, as per the paper',
     )
     parser.add_argument(
         '--ent-coef',
@@ -84,3 +72,4 @@ def add_ppo_arguments(parser):
         default=True,
         help='if toggled, cuda will be enabled by default',
     )
+    return parser

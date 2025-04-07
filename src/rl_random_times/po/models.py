@@ -13,20 +13,23 @@ class ActorCriticModel(nn.Module):
         if seed is not None:
             torch.manual_seed(seed)
 
-        # critic nn
+        # model for the value function 
         self.critic_sizes = [state_dim] + list(hidden_sizes) + [1]
         self.critic = mlp(
             sizes=self.critic_sizes,
             activation=activation,
             output_activation=nn.Identity(),
         )
+
+        # model for a gaussian stochastic policy
         self.actor = GaussianPolicyLearntCov(
             state_dim, action_dim, hidden_sizes,
             activation=activation, std_init=std_init,
         )
 
     def get_value(self, state):
-        return self.critic(state)
+        with torch.no_grad():
+            return self.critic(state).numpy()
 
     def sample_action(self, state, log_prob=False):
         return self.actor.sample_action(state, log_prob=log_prob)

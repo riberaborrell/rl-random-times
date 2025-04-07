@@ -16,11 +16,11 @@ from rl_random_times.utils.numeric import cumsum_numpy as cumsum, normalize_arra
 from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_reinforce_stoch_dir_path
 
 class ReinforceStochastic:
-    def __init__(self, env, env_id, n_steps_lim, expectation_type, return_type, gamma,
+    def __init__(self, env, env_name, n_steps_lim, expectation_type, return_type, gamma,
                  n_layers, d_hidden_layer, batch_size, lr, n_grad_iterations, seed,
                  policy_type=None, policy_noise=None, estimate_z=None, batch_size_z=None,
                  mini_batch_size=None, mini_batch_size_type='constant', optim_type='adam',
-                 scheduled_lr=False, lr_final=None):
+                 scheduled_lr=False, lr_final=None, norm_returns=True):
 
         if isinstance(env.action_space, gym.spaces.Box):
             self.is_action_continuous = True
@@ -37,7 +37,7 @@ class ReinforceStochastic:
             self.agent = 'reinforce-discrete-{}'.format(expectation_type)
 
         # environment and state and action dimension
-        self.env_id = env_id
+        self.env_name = env_name
         self.env = env
         self.n_steps_lim = n_steps_lim
 
@@ -59,6 +59,7 @@ class ReinforceStochastic:
         # expectation type and return type
         self.expectation_type = expectation_type
         self.return_type = return_type
+        self.norm_returns = norm_returns
 
         # discount
         self.gamma = gamma
@@ -227,7 +228,8 @@ class ReinforceStochastic:
         returns = torch.FloatTensor(returns)
 
         # normalize returns
-        returns = normalize_array(returns, eps=1e-5)
+        if self.norm_returns:
+            returns = normalize_array(returns, eps=1e-5)
 
         # compute log probs
         _, log_probs = self.policy(states, actions)

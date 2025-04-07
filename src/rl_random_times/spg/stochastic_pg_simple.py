@@ -19,7 +19,7 @@ class ReinforceStochastic:
                  optim_type='adam'):
 
         # environment id
-        self.env_id = 'bla'#env.spec.id
+        self.env_name = 'bla'#env.spec.id
 
         if isinstance(env.action_space, gym.spaces.Box):
             self.is_action_continuous = True

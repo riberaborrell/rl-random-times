@@ -10,10 +10,11 @@ import torch.optim as optim
 
 from rl_random_times.po.models import ActorCriticModel
 from rl_random_times.utils.statistics import Statistics
+from rl_random_times.utils.numeric import normalize_array
 from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_ppo_dir_path
 
 class PPO:
-    def __init__(self, env, env_id, n_envs, n_steps_lim, gamma, n_total_steps, n_layers=2,
+    def __init__(self, env, env_name, n_envs, n_steps_lim, gamma, n_total_steps, n_layers=2,
                  d_hidden_layers=32, policy_noise_init=1.0, optim_type='sgd',
                  lr=3e-4, anneal_lr=True, n_mini_batches=32, update_epochs=10, max_grad_norm=0.5,
                  norm_adv=True, gae_lambda=0.95, clip_vloss=True, clip_coef=0.2, ent_coef=0.,
@@ -24,7 +25,7 @@ class PPO:
 
         # environments
         self.env = env
-        self.env_id = env_id
+        self.env_name = env_name
         self.n_envs = n_envs
         self.n_steps_lim = n_steps_lim
 
@@ -71,8 +72,10 @@ class PPO:
         else:
             raise ValueError('The optimizer {optim} is not implemented')
 
-        # critic
+        # normalize advantages flag
         self.norm_adv = norm_adv
+
+        # critic
         self.gae_lambda = gae_lambda
 
         # value function
@@ -167,7 +170,7 @@ class PPO:
                 # ALGO LOGIC: action logic
                 with torch.no_grad():
                     action, logprob, value = self.model.get_action_and_value(next_obs)
-                    values[step] = value.flatten()
+                    values[step] = torch.Tensor(value.flatten()).to(self.device)
                 actions[step] = torch.Tensor(action).to(self.device)
                 logprobs[step] = torch.Tensor(logprob).to(self.device)
 
@@ -187,7 +190,7 @@ class PPO:
 
             # bootstrap value if not done
             with torch.no_grad():
-                next_value = self.model.get_value(next_obs).reshape(1, -1)
+                next_value = self.model.critic.forward(next_obs).reshape(1, -1)
                 advantages = torch.zeros_like(rewards).to(self.device)
                 lastgaelam = 0
                 for t in reversed(range(self.n_steps_lim)):
@@ -237,7 +240,7 @@ class PPO:
 
                     mb_advantages = b_advantages[mb_inds]
                     if self.norm_adv:
-                        mb_advantages = (mb_advantages - mb_advantages.mean()) / (mb_advantages.std() + 1e-8)
+                        mb_advantages = normalize_array(mb_advantages, eps=1e-8)
 
                     # Policy loss
                     pg_loss1 = -mb_advantages * ratio
