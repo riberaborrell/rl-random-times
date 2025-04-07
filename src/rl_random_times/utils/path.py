@@ -62,10 +62,10 @@ def save_model(model, dir_path: str, file_name: str):
 def load_model(model, rel_dir_path, file_name):
     model.load_state_dict(torch.load(os.path.join(get_data_dir(), rel_dir_path, file_name)))
 
-def get_dir_path(env_id: str, algorithm_name: str, param_str: str = '') -> str:
+def get_dir_path(env_name: str, algorithm_name: str, param_str: str = '') -> str:
 
     # relative directory path
-    dir_path = os.path.join(env_id, algorithm_name, param_str)
+    dir_path = os.path.join(env_name, algorithm_name, param_str)
 
     # create dir path if not exists
     make_dir_path(os.path.join(get_data_dir(), dir_path))
@@ -131,6 +131,12 @@ def get_iter_str(**kwargs):
         string = ''
     return string
 
+def get_value_function_estimation_str(**kwargs):
+    string = 'vf-coef{:.3f}_'.format(kwargs['vf_coef'])
+    if kwargs['clip_vf_loss']:
+        string += 'clip-coef{:.3f}_'.format(kwargs['clip_coef'])
+    return string
+
 def get_seed_str(**kwargs):
     if 'seed' not in kwargs.keys() or not kwargs['seed']:
         string = 'seedNone'.format(kwargs['seed'])
@@ -148,7 +154,7 @@ def get_reinforce_discrete_simple_dir_path(**kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
+    return get_dir_path(kwargs['env_name'], kwargs['agent'], param_str)
 
 def get_reinforce_cont_simple_dir_path(**kwargs):
     # set parameters string
@@ -162,7 +168,7 @@ def get_reinforce_cont_simple_dir_path(**kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
+    return get_dir_path(kwargs['env_name'], kwargs['agent'], param_str)
 
 def get_reinforce_simple_dir_path(**kwargs):
     if kwargs['is_action_continuous']:
@@ -185,7 +191,7 @@ def get_reinforce_stoch_discrete_dir_path(**kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
+    return get_dir_path(kwargs['env_name'], kwargs['agent'], param_str)
 
 def get_reinforce_stoch_cont_dir_path(**kwargs):
     '''
@@ -204,13 +210,37 @@ def get_reinforce_stoch_cont_dir_path(**kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
+    return get_dir_path(kwargs['env_name'], kwargs['agent'], param_str)
 
 def get_reinforce_stoch_dir_path(**kwargs):
     if kwargs['is_action_continuous']:
         return get_reinforce_stoch_cont_dir_path(**kwargs)
     else:
         return get_reinforce_stoch_discrete_dir_path(**kwargs)
+
+def get_ac_stoch_cont_dir_path(**kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['n_steps_lim']) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + 'policy-noise{:.2f}_'.format(kwargs['policy_noise']) \
+              + get_z_estimation_str(**kwargs) \
+              + get_lr_and_batch_size_str(**kwargs) \
+              + 'optim-{}_'.format(kwargs['optim_type']) \
+              + get_iter_str(**kwargs) \
+              + get_value_function_estimation_str(**kwargs) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(kwargs['env_name'], kwargs['agent'], param_str)
+
+def get_ac_stoch_dir_path(**kwargs):
+    if kwargs['is_action_continuous']:
+        return get_ac_stoch_cont_dir_path(**kwargs)
+    else:
+        return get_ac_stoch_discrete_dir_path(**kwargs)
 
 def get_reinforce_det_dir_path(**kwargs):
     '''
@@ -227,7 +257,7 @@ def get_reinforce_det_dir_path(**kwargs):
               + get_iter_str(**kwargs) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
+    return get_dir_path(kwargs['env_name'], kwargs['agent'], param_str)
 
 def get_ppo_dir_path(**kwargs):
     '''
@@ -246,5 +276,5 @@ def get_ppo_dir_path(**kwargs):
               + 'update-epochs{:d}_'.format(kwargs['update_epochs']) \
               + get_seed_str(**kwargs)
 
-    return get_dir_path(kwargs['env_id'], kwargs['agent'], param_str)
+    return get_dir_path(kwargs['env_name'], kwargs['agent'], param_str)
 
