@@ -31,7 +31,7 @@ def main():
     # reinforce stochastic agent
     agent = ActorCriticStochastic(
         env, args.env_id, args.n_steps_lim, args.expectation_type, args.gamma,
-        args.n_layers, args.d_hidden_layers, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
+        args.n_layers, args.d_hidden_layer, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
         args.policy_noise, args.estimate_z,
         args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,
         args.optim_type, args.scheduled_lr, args.lr_final, args.norm_adv, args.clip_vf_loss, args.clip_coef, args.vf_coef,

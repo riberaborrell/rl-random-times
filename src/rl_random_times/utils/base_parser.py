@@ -94,10 +94,10 @@ def get_base_parser():
         help='the total number of layers for a feed-forward NN',
     )
     parser.add_argument(
-        '--d-hidden-layers',
+        '--d-hidden-layer',
         type=int,
         default=32,
-        help='the dimension of the hidden layers',
+        help='the dimension of all hidden layers',
     )
     parser.add_argument(
         '--gaussian-policy-type',

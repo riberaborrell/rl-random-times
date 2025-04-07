@@ -15,7 +15,7 @@ from rl_random_times.utils.path import load_data, save_data, save_model, load_mo
 
 class PPO:
     def __init__(self, env, env_name, n_envs, n_steps_lim, gamma, n_total_steps, n_layers=2,
-                 d_hidden_layers=32, policy_noise_init=1.0, optim_type='sgd',
+                 d_hidden_layer=32, policy_noise_init=1.0, optim_type='sgd',
                  lr=3e-4, anneal_lr=True, n_mini_batches=32, update_epochs=10, max_grad_norm=0.5,
                  norm_adv=True, gae_lambda=0.95, clip_vloss=True, clip_coef=0.2, ent_coef=0.,
                  vf_coef=0.5, target_kl=None, seed=None, cuda=False, torch_deterministic=True):
@@ -43,10 +43,10 @@ class PPO:
         # stochastic policy
         self.policy_noise_init = policy_noise_init
         self.n_layers = n_layers
-        self.d_hidden_layers = d_hidden_layers
+        self.d_hidden_layer = d_hidden_layer
 
         # initialize ppo agent. actor and critic networks
-        hidden_sizes = [d_hidden_layers for i in range(n_layers -1)]
+        hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
         self.model = ActorCriticModel(
             self.state_dim, self.action_dim, hidden_sizes,
                 activation=nn.Tanh(), std_init=policy_noise_init, seed=seed,

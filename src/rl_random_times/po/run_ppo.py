@@ -40,7 +40,7 @@ def main():
         gamma=args.gamma,
         n_total_steps=args.n_total_steps,
         n_layers=args.n_layers,
-        d_hidden_layers=args.d_hidden_layers,
+        d_hidden_layer=args.d_hidden_layer,
         policy_noise_init=args.policy_noise,
         n_mini_batches=args.n_mini_batches,
         lr=args.lr,

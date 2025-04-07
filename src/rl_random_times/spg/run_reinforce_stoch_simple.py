@@ -19,7 +19,7 @@ def main():
         policy_type=args.gaussian_policy_type,
         policy_noise=args.policy_noise,
         n_layers=args.n_layers,
-        d_hidden_layer=args.d_hidden,
+        d_hidden_layer=args.d_hidden_layer,
         lr=args.lr,
         n_episodes=args.n_episodes,
         seed=args.seed,

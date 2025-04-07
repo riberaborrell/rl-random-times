@@ -38,7 +38,7 @@ def main():
     # reinforce stochastic agent
     agent = ReinforceStochastic(
         env, env_name, env.envs[0]._max_episode_steps, args.expectation_type, args.return_type, args.gamma,
-        args.n_layers, args.d_hidden, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
+        args.n_layers, args.d_hidden_layer, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
         args.gaussian_policy_type, args.policy_noise, args.estimate_z,
         args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,
         args.optim_type, args.scheduled_lr, args.lr_final,
