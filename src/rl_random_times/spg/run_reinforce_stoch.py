@@ -52,6 +52,7 @@ def main():
         scheduled_lr=args.scheduled_lr,
         lr_final=args.lr_final,
         norm_returns=args.norm_returns,
+        cuda=args.cuda,
     )
 
     # run

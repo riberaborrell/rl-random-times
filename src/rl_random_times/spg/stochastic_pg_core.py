@@ -23,7 +23,7 @@ class ReinforceStochastic:
                  batch_size=100, batch_size_z=100, mini_batch_size=1,
                  mini_batch_size_type='adaptive', lr=1e-2, n_grad_iterations=100, seed=None,
                  policy_type='learnt-cov', policy_noise=1.0, optim_type='sgd',
-                 scheduled_lr=False, lr_final=1e-2, norm_returns=True):
+                 scheduled_lr=False, lr_final=1e-2, norm_returns=True, cuda=False):
 
         if isinstance(env.action_space, gym.spaces.Box):
             self.is_action_continuous = True
@@ -46,6 +46,9 @@ class ReinforceStochastic:
 
         # discount
         self.gamma = gamma
+
+        # cuda device
+        self.device = torch.device("cuda" if torch.cuda.is_available() and cuda else "cpu")
 
         # get state and action dimensions
         if 'EnvPool' in type(env).__name__ or hasattr(env.unwrapped, 'is_vectorized'):
@@ -85,15 +88,15 @@ class ReinforceStochastic:
             self.policy = GaussianPolicyConstantCov(
                 self.state_dim, self.action_dim, hidden_sizes,
                 activation=nn.Tanh(), std=self.policy_noise, seed=seed,
-            )
+            ).to(self.device)
         elif self.is_action_continuous and policy_type == 'learnt-cov':
             self.policy = GaussianPolicyLearntCov(
                 self.state_dim, self.action_dim, hidden_sizes,
                 activation=nn.Tanh(), std_init=self.policy_noise, seed=seed,
-            )
+            ).to(self.device)
         else:
             self.policy = CategoricalPolicy(self.state_dim, self.n_actions, hidden_sizes,
-                                            activation=nn.Tanh(), seed=seed)
+                                            activation=nn.Tanh(), seed=seed).to(self.device)
         # stochastic gradient descent
         self.batch_size = batch_size
         if self.expectation_type == 'on-policy':
@@ -226,9 +229,9 @@ class ReinforceStochastic:
         states, actions, returns, initial_returns, time_steps = self.sample_trajectories()
 
         # convert to torch tensors
-        states = torch.FloatTensor(states)
-        actions = torch.FloatTensor(actions)
-        returns = torch.FloatTensor(returns)
+        states = torch.Tensor(states).to(self.device)
+        actions = torch.Tensor(actions).to(self.device)
+        returns = torch.Tensor(returns).to(self.device)
 
         # normalize returns
         if self.norm_returns:

@@ -189,6 +189,11 @@ def get_base_parser():
         help='toggles to display the plots',
     )
     parser.add_argument(
+        '--cuda',
+        action='store_true',
+        help='if toggled, cuda will be enabled by default',
+    )
+    parser.add_argument(
         '--live-plot-freq',
         type=int,
         default=None,
