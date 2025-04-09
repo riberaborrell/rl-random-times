@@ -65,7 +65,7 @@ def get_base_parser():
     parser.add_argument(
         '--lr-final',
         type=float,
-        default=None,
+        default=1e-2,
         help='the final learning rate (for custom scheduling)',
     )
     parser.add_argument(
@@ -127,7 +127,7 @@ def get_base_parser():
     parser.add_argument(
         '--mini-batch-size',
         type=int,
-        default=None,
+        default=1,
         help='the mini batch size for on-policy state-space expectations',
     )
     parser.add_argument(
@@ -157,7 +157,7 @@ def get_base_parser():
     parser.add_argument(
         '--optim-type',
         choices=['sgd', 'adam'],
-        default='adam',
+        default='sgd',
         help='the optimization routine',
     )
     parser.add_argument(

@@ -65,7 +65,7 @@ def plot_ys_per_x(x, ys, run_window=1, hlines=None, title='', plot_scale='linear
         colors = [COLORS_TAB10[i] for i in range(n_lines)]
     if type(x) is not list:
         x = [x for i in range(n_lines)]
-    run_mean_ys = np.array([compute_running_mean(y, run_window) if run_window > 1 else None for y in ys])
+    run_mean_ys = [compute_running_mean(y, run_window) if run_window > 1 else None for y in ys]
     fig, ax = plt.subplots()
     ax.set_title(title)
     ax.set_xlabel(xlabel)

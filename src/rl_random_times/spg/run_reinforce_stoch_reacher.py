@@ -52,18 +52,34 @@ def main():
 
     # reinforce stochastic agent
     agent = ReinforceStochastic(
-        env, env_name, env.envs[0]._max_episode_steps, args.expectation_type, args.return_type, args.gamma,
-        args.n_layers, args.d_hidden_layer, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
-        args.gaussian_policy_type, args.policy_noise, args.estimate_z,
-        args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,
-        args.optim_type, args.scheduled_lr, args.lr_final,
+        env=env,
+        env_name=env_name,
+        n_steps_lim=env.envs[0]._max_episode_steps,
+        expectation_type=args.expectation_type,
+        return_type=args.return_type,
+        gamma=args.gamma,
+        n_layers=args.n_layers,
+        d_hidden_layer=args.d_hidden_layer,
+        batch_size=args.batch_size,
+        lr=args.lr,
+        n_grad_iterations=args.n_grad_iterations,
+        seed=args.seed,
+        policy_type=args.gaussian_policy_type,
+        policy_noise=args.policy_noise,
+        estimate_z=args.estimate_z,
+        batch_size_z=args.batch_size_z,
+        mini_batch_size=args.mini_batch_size,
+        mini_batch_size_type=args.mini_batch_size_type,
+        optim_type=args.optim_type,
+        scheduled_lr=args.scheduled_lr,
+        lr_final=args.lr_final,
+        norm_returns=args.norm_returns,
     )
 
     # run
     succ, data = agent.run_reinforce(
         log_freq=args.log_freq,
         backup_freq=args.backup_freq,
-        live_plot_freq=args.live_plot_freq,
         load=args.load,
     )
     env.close()

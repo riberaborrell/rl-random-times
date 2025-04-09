@@ -8,19 +8,22 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from rl_random_times.spg.models import CategoricalPolicy, GaussianPolicyConstantCov, GaussianPolicyLearntCov
+from rl_random_times.spg.models import CategoricalPolicy, \
+                                       GaussianPolicyConstantCov, GaussianPolicyLearntCov
 from rl_random_times.spg.replay_memories import ReplayMemoryReturn as Memory
 from rl_random_times.utils.statistics import Statistics
-from rl_random_times.utils.schedulers import simple_lr_schedule#, two_phase_lr_schedule
+from rl_random_times.utils.schedulers import simple_lr_schedule
 from rl_random_times.utils.numeric import cumsum_numpy as cumsum, normalize_array
-from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_reinforce_stoch_dir_path
+from rl_random_times.utils.path import load_data, save_data, save_model, \
+                                       load_model, get_reinforce_stoch_dir_path
 
 class ReinforceStochastic:
-    def __init__(self, env, env_name, n_steps_lim, expectation_type, return_type, gamma,
-                 n_layers, d_hidden_layer, batch_size, lr, n_grad_iterations, seed,
-                 policy_type=None, policy_noise=None, estimate_z=None, batch_size_z=None,
-                 mini_batch_size=None, mini_batch_size_type='constant', optim_type='adam',
-                 scheduled_lr=False, lr_final=None, norm_returns=True):
+    def __init__(self, env, env_name, n_steps_lim, gamma=1.0, expectation_type='random-time',
+                 return_type='initial-return', estimate_z=True, n_layers=2, d_hidden_layer=32,
+                 batch_size=100, batch_size_z=100, mini_batch_size=1,
+                 mini_batch_size_type='adaptive', lr=1e-2, n_grad_iterations=100, seed=None,
+                 policy_type='learnt-cov', policy_noise=1.0, optim_type='sgd',
+                 scheduled_lr=False, lr_final=1e-2, norm_returns=True):
 
         if isinstance(env.action_space, gym.spaces.Box):
             self.is_action_continuous = True
@@ -40,6 +43,9 @@ class ReinforceStochastic:
         self.env_name = env_name
         self.env = env
         self.n_steps_lim = n_steps_lim
+
+        # discount
+        self.gamma = gamma
 
         # get state and action dimensions
         if 'EnvPool' in type(env).__name__ or hasattr(env.unwrapped, 'is_vectorized'):
@@ -61,8 +67,11 @@ class ReinforceStochastic:
         self.return_type = return_type
         self.norm_returns = norm_returns
 
-        # discount
-        self.gamma = gamma
+        # state space (on-policy) expectation
+        if expectation_type == 'on-policy':
+            self.estimate_z = estimate_z
+            self.mini_batch_size = mini_batch_size
+            self.mini_batch_size_type = mini_batch_size_type
 
         # stochastic policy
         self.policy_type = policy_type
@@ -85,7 +94,6 @@ class ReinforceStochastic:
         else:
             self.policy = CategoricalPolicy(self.state_dim, self.n_actions, hidden_sizes,
                                             activation=nn.Tanh(), seed=seed)
-
         # stochastic gradient descent
         self.batch_size = batch_size
         if self.expectation_type == 'on-policy':
@@ -117,11 +125,6 @@ class ReinforceStochastic:
         # seed
         self.seed = seed
 
-        # on-policy expectation
-        if expectation_type == 'on-policy':
-            self.estimate_z = estimate_z
-            self.mini_batch_size = mini_batch_size
-            self.mini_batch_size_type = mini_batch_size_type
 
     def sample_trajectories(self):
 
