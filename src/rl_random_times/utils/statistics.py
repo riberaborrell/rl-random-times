@@ -18,7 +18,7 @@ def compute_std_and_re(mean: float, var: float):
 class Statistics(object):
 
     def __init__(self, eval_freq, n_iterations, policy_type='det', iter_str='it.:',
-                 track_loss=False, track_ct=False, track_lr=False):
+                 track_loss=False, track_ct=False, track_lr=False, track_pg_updates=False):
 
         assert policy_type in ['det', 'stoch', 'stoch-mean'], 'Policy type not recognized'
         self.policy_type = policy_type
@@ -32,6 +32,7 @@ class Statistics(object):
         self.iter_str = iter_str
 
         # flags
+        self.track_pg_updates = track_pg_updates
         self.track_loss = track_loss
         self.track_ct = track_ct
         self.track_lr = track_lr
@@ -46,6 +47,10 @@ class Statistics(object):
         self.mean_returns = np.full(self.n_epochs, np.nan)
         self.var_returns = np.full(self.n_epochs, np.nan)
 
+        # pg updates
+        if track_pg_updates:
+            self.n_grad_updates = np.full(self.n_epochs, np.nan)
+
         # losses
         if track_loss:
             self.losses = np.full(self.n_epochs, np.nan)
@@ -59,8 +64,10 @@ class Statistics(object):
         if track_lr:
             self.lrs = np.full(self.n_epochs, np.nan)
 
-    def save_epoch(self, i, returns, time_steps, loss=None, loss_var=None, ct=None, lr=None):
+    def save_epoch(self, i, returns, time_steps, n_pg_updates=None, loss=None, loss_var=None, ct=None, lr=None):
 
+        if self.track_pg_updates:
+            assert n_pg_updates is not None, 'Number of policy gradient updates is not provided'
         if self.track_loss:
             assert loss is not None and loss_var is not None, 'Loss is not provided'
         if self.track_ct:
@@ -72,6 +79,8 @@ class Statistics(object):
         self.max_lengths[i] = np.max(time_steps)
         self.total_lengths[i] = np.sum(time_steps)
         self.mean_returns[i], self.var_returns[i], _, _ = compute_array_statistics(returns)
+        if self.track_pg_updates:
+            self.n_grad_updates[i] = n_pg_updates
         if self.track_loss:
             self.losses[i] = loss
             self.loss_vars[i] = loss_var

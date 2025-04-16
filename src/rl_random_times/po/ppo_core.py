@@ -21,7 +21,7 @@ class PPO:
                  vf_coef=0.5, target_kl=None, seed=None, cuda=False, torch_deterministic=True):
 
         # agent name
-        self.agent = 'ppo'
+        self.agent = 'original-ppo'
 
         # environments
         self.env = env

@@ -66,10 +66,4 @@ def add_ppo_arguments(parser):
         default=True,
         help='if toggled, `torch.backends.cudnn.deterministic=False`',
     )
-    parser.add_argument(
-        '--cuda',
-        type=bool,
-        default=True,
-        help='if toggled, cuda will be enabled by default',
-    )
     return parser

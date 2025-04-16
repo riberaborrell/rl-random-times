@@ -20,8 +20,8 @@ from rl_random_times.utils.path import load_data, save_data, save_model, \
 class ReinforceStochastic:
     def __init__(self, env, env_name, n_steps_lim, gamma=1.0, expectation_type='random-time',
                  return_type='initial-return', estimate_z=True, n_layers=2, d_hidden_layer=32,
-                 batch_size=100, batch_size_z=100, mini_batch_size=1,
-                 mini_batch_size_type='adaptive', lr=1e-2, n_grad_iterations=100, seed=None,
+                 batch_size=100, batch_size_z=100, mini_batch_size_type='adaptive', mini_batch_size=1,
+                 lr=1e-2, n_grad_iterations=100, seed=None,
                  policy_type='learnt-cov', policy_noise=1.0, optim_type='sgd',
                  scheduled_lr=False, lr_final=1e-2, norm_returns=True, cuda=False):
 
@@ -68,13 +68,15 @@ class ReinforceStochastic:
         # expectation type and return type
         self.expectation_type = expectation_type
         self.return_type = return_type
-        self.norm_returns = norm_returns
 
         # state space (on-policy) expectation
         if expectation_type == 'on-policy':
             self.estimate_z = estimate_z
             self.mini_batch_size = mini_batch_size
             self.mini_batch_size_type = mini_batch_size_type
+
+        # normalize returns
+        self.norm_returns = norm_returns
 
         # stochastic policy
         self.policy_type = policy_type

@@ -161,6 +161,11 @@ def get_base_parser():
         help='the optimization routine',
     )
     parser.add_argument(
+        '--cuda',
+        action='store_true',
+        help='if toggled, cuda will be enabled by default',
+    )
+    parser.add_argument(
         '--env-type',
         choices=['gym', 'envpool', 'custom'],
         default='gym',
@@ -187,11 +192,6 @@ def get_base_parser():
         '--plot',
         action='store_true',
         help='toggles to display the plots',
-    )
-    parser.add_argument(
-        '--cuda',
-        action='store_true',
-        help='if toggled, cuda will be enabled by default',
     )
     parser.add_argument(
         '--live-plot-freq',

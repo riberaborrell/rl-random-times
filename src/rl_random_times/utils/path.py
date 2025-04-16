@@ -127,6 +127,8 @@ def get_iter_str(**kwargs):
         string = 'n-total-steps{:.0e}_'.format(kwargs['n_total_steps'])
     elif 'n_grad_iterations' in kwargs.keys():
         string = 'n-grad-iter{:.0e}_'.format(kwargs['n_grad_iterations'])
+    elif 'n_iterations' in kwargs.keys():
+        string = 'n-iter{:.0e}_'.format(kwargs['n_iterations'])
     else:
         string = ''
     return string
@@ -274,6 +276,27 @@ def get_ppo_dir_path(**kwargs):
               + 'optim-{}_'.format(kwargs['optim_type']) \
               + 'n-mini-batches{:d}_'.format(kwargs['n_mini_batches']) \
               + 'update-epochs{:d}_'.format(kwargs['update_epochs']) \
+              + get_seed_str(**kwargs)
+
+    return get_dir_path(kwargs['env_name'], kwargs['agent'], param_str)
+
+def get_episodic_ppo_dir_path(**kwargs):
+    '''
+    '''
+
+    # set parameters string
+    param_str = 'n-steps-lim{:.0e}_'.format(kwargs['n_steps_lim']) \
+              + 'gamma{:.3f}_'.format(kwargs['gamma']) \
+              + get_model_arch_str(**kwargs) \
+              + 'policy-noise-init{:.2f}_'.format(kwargs['policy_noise_init']) \
+              + get_lr_and_batch_size_str(**kwargs) \
+              + 'optim-{}_'.format(kwargs['optim_type']) \
+              + get_iter_str(**kwargs) \
+              + 'n-mini-batches{:d}_'.format(kwargs['n_mini_batches']) \
+              + 'update-epochs{:d}_'.format(kwargs['update_epochs']) \
+              + 'clip-coef{:.2f}_'.format(kwargs['clip_coef']) \
+              + 'ent-coef{:.2f}_'.format(kwargs['ent_coef']) \
+              + 'vf-coef{:.2f}_'.format(kwargs['vf_coef']) \
               + get_seed_str(**kwargs)
 
     return get_dir_path(kwargs['env_name'], kwargs['agent'], param_str)
