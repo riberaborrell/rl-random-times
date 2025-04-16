@@ -1,10 +1,10 @@
 import gymnasium as gym
 import gym_sde_is
+import numpy as np
 
 from rl_random_times.dpg.deterministic_pg_core import ModelBasedDeterministicPG
 from rl_random_times.utils.base_parser import get_base_parser
 from rl_random_times.utils.plots import *
-
 
 def main():
     parser = get_base_parser()
@@ -45,17 +45,33 @@ def main():
 
     # model-based deterministic pg agent
     agent = ModelBasedDeterministicPG(
-        env, env.unwrapped.__str__(), env._max_episode_steps, args.expectation_type, args.return_type, args.gamma,
-        args.n_layers, args.d_hidden_layer, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
-        args.estimate_z, args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,
-        args.optim_type, args.scheduled_lr, args.lr_final, args.norm_returns,
+        env=env,
+        env_name=env.unwrapped.__str__(),
+        n_steps_lim=env._max_episode_steps,
+        gamma=args.gamma,
+        expectation_type=args.expectation_type,
+        return_type=args.return_type,
+        estimate_z=args.estimate_z,
+        n_layers=args.n_layers,
+        d_hidden_layer=args.d_hidden_layer,
+        optim_type=args.optim_type,
+        batch_size=args.batch_size,
+        batch_size_z=args.batch_size_z,
+        mini_batch_size_type=args.mini_batch_size_type,
+        mini_batch_size=args.mini_batch_size,
+        lr=args.lr,
+        n_grad_iterations=args.n_grad_iterations,
+        seed=args.seed,
+        scheduled_lr=args.scheduled_lr,
+        lr_final=args.lr_final,
+        norm_returns=args.norm_returns,
+        cuda=args.cuda,
     )
 
     # run
     succ, data = agent.run_reinforce(
         log_freq=args.log_freq,
         backup_freq=args.backup_freq,
-        live_plot_freq=args.live_plot_freq,
         load=args.load,
     )
     env.close()

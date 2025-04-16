@@ -25,11 +25,13 @@ def main():
     )
     args = parser.parse_args()
 
-    assert 'Swimmer' in args.env_id, 'This script only works with the Swimmer environment.'
+    # batch size
+    K = args.batch_size if args.expectation_type == 'random-time' else args.batch_size_z
 
     # create vectorized environment
-    env = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, args.threshold_fwd_dist) for _ in range(args.batch_size)]
+    assert 'Swimmer' in args.env_id, 'This script only works with the Swimmer environment.'
+    envs = gym.vector.SyncVectorEnv(
+        [make_env(args.env_id, args.threshold_fwd_dist) for _ in range(K)]
     )
 
     # environment name
@@ -37,9 +39,9 @@ def main():
 
     # reinforce stochastic agent
     agent = ReinforceStochastic(
-        env=env,
+        envs,
         env_name=env_name,
-        n_steps_lim=env.envs[0]._max_episode_steps,
+        n_steps_lim=envs.envs[0]._max_episode_steps,
         expectation_type=args.expectation_type,
         return_type=args.return_type,
         gamma=args.gamma,
@@ -67,7 +69,7 @@ def main():
         backup_freq=args.backup_freq,
         load=args.load,
     )
-    env.close()
+    envs.close()
 
     # do plots
     if not args.plot or not succ:

@@ -1,48 +1,55 @@
 import gymnasium as gym
 import numpy as np
 
-from rl_random_times.po.ppo_core_adapted import PPO
+from rl_random_times.po.ppo_core import PPO
 from rl_random_times.po.ppo_parser import add_ppo_arguments
 from rl_random_times.utils.base_parser import get_base_parser
 from rl_random_times.utils.plots import plot_y_per_x
+
+def make_env(env_id, gamma):
+    def thunk():
+        env = gym.make(env_id)
+        env = gym.wrappers.FlattenObservation(env)  # deal with dm_control's Dict observation space
+        env = gym.wrappers.RecordEpisodeStatistics(env)
+        env = gym.wrappers.ClipAction(env)
+        env = gym.wrappers.NormalizeObservation(env)
+        env = gym.wrappers.TransformObservation(env, lambda obs: np.clip(obs, -10, 10), env.observation_space)
+        env = gym.wrappers.NormalizeReward(env, gamma=gamma)
+        env = gym.wrappers.TransformReward(env, lambda reward: np.clip(reward, -10, 10))
+        return env
+    return thunk
 
 def main():
     parser = get_base_parser()
     add_ppo_arguments(parser)
     args = parser.parse_args()
 
-    # environment parameters
-    kwargs = {}
-
-    # time horizon
-    assert args.n_steps_lim is not None, 'n_steps_lim must be set.'
-    kwargs['max_episode_steps'] = args.n_steps_lim
-
-    #TODO: add batch size z
-    # batch size
-    K = args.batch_size #if args.expectation_type == 'random-time' else args.batch_size_z
-
     # env setup
-    envs = gym.make_vec(args.env_id, num_envs=K, vectorization_mode="sync", **kwargs)
-    assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
+    env = gym.vector.SyncVectorEnv(
+        [make_env(args.env_id, args.gamma) for i in range(args.n_envs)]
+        #[make_env(args.env_id, args.gamma) for i in range(args.batch_size)]
+    )
+    assert isinstance(env.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
     # PPO agent
     agent = PPO(
-        envs,
+        env,
         env_name=args.env_id,
+        n_envs=args.n_envs,
         n_steps_lim=args.n_steps_lim,
         gamma=args.gamma,
+        n_total_steps=args.n_total_steps,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden_layer,
-        batch_size=args.batch_size,
-        n_iterations=args.n_iterations,
         policy_noise_init=args.policy_noise,
-        update_epochs=args.update_epochs,
         n_mini_batches=args.n_mini_batches,
         lr=args.lr,
+        anneal_lr=args.lr,
+        update_epochs=args.update_epochs,
         max_grad_norm=args.max_grad_norm,
         optim_type=args.optim_type,
         norm_adv=args.norm_adv,
+        gae_lambda=args.gae_lambda,
         clip_vloss=args.clip_vloss,
         clip_coef=args.clip_coef,
         ent_coef=args.ent_coef,
@@ -59,7 +66,7 @@ def main():
         backup_freq=args.backup_freq,
         load=args.load,
     )
-    envs.close()
+    env.close()
 
     # do plots
     if not args.plot or not succ:

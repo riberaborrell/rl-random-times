@@ -19,11 +19,11 @@ from rl_random_times.utils.path import load_data, save_data, save_model, \
 
 class ReinforceStochastic:
     def __init__(self, env, env_name, n_steps_lim, gamma=1.0, expectation_type='random-time',
-                 return_type='initial-return', estimate_z=True, n_layers=2, d_hidden_layer=32,
-                 batch_size=100, batch_size_z=100, mini_batch_size_type='adaptive', mini_batch_size=1,
-                 lr=1e-2, n_grad_iterations=100, seed=None,
-                 policy_type='learnt-cov', policy_noise=1.0, optim_type='sgd',
-                 scheduled_lr=False, lr_final=1e-2, norm_returns=True, cuda=False):
+                 return_type='initial-return', estimate_z=True, policy_type='learnt-cov',
+                 policy_noise=1.0, n_layers=2, d_hidden_layer=32, optim_type='sgd', batch_size=100,
+                 batch_size_z=100, mini_batch_size_type='adaptive', mini_batch_size=1, lr=1e-2,
+                 n_grad_iterations=100, seed=None, scheduled_lr=False, lr_final=1e-2,
+                 norm_returns=True, cuda=False):
 
         if isinstance(env.action_space, gym.spaces.Box):
             self.is_action_continuous = True
@@ -50,18 +50,25 @@ class ReinforceStochastic:
         # cuda device
         self.device = torch.device("cuda" if torch.cuda.is_available() and cuda else "cpu")
 
+        # environment type
+        if 'VectorEnv' in type(env).__name__:
+            self.env_type = 'gym'
+        elif 'EnvPool' in type(env).__name__:
+            self.env_type = 'envpool'
+        else:
+            self.env_type = 'custom'
+
         # get state and action dimensions
-        if 'EnvPool' in type(env).__name__ or hasattr(env.unwrapped, 'is_vectorized'):
+        if self.env_type == 'gym':
+            self.state_dim = env.single_observation_space.shape[0]
+            if self.is_action_continuous:
+                self.action_dim = env.single_action_space.shape[0]
+            else:
+                self.n_actions = env.single_action_space.n
+        elif self.env_type == 'envpool' or self.env_type == 'custom':
             self.state_dim = env.observation_space.shape[0]
             if self.is_action_continuous:
                 self.action_dim = env.action_space.shape[0]
-            else:
-                self.n_actions = env.action_space.n
-
-        else:
-            self.state_dim = env.observation_space.shape[1]
-            if self.is_action_continuous:
-                self.action_dim = env.action_space.shape[1]
             else:
                 self.n_actions = env.action_space.n
 
@@ -99,7 +106,7 @@ class ReinforceStochastic:
         else:
             self.policy = CategoricalPolicy(self.state_dim, self.n_actions, hidden_sizes,
                                             activation=nn.Tanh(), seed=seed).to(self.device)
-        # stochastic gradient descent
+        # stohastic gradient descent
         self.batch_size = batch_size
         if self.expectation_type == 'on-policy':
             batch_size_z = batch_size if batch_size_z is None else batch_size_z
@@ -143,13 +150,10 @@ class ReinforceStochastic:
         states, actions, rewards = [], [], []
 
         # reset environment
-
-        # custom vectorized environment
-        if hasattr(self.env.unwrapped, 'is_vectorized'):
+        if self.env_type == 'custom': # custom vectorized environment
             state, _ = self.env.reset(seed=self.seed, options={'batch_size': K})
 
-        # gym vect env or envpool env
-        else:
+        else: # gym vect env or envpool env
             state, _ = self.env.reset()
 
         # terminated and done flags

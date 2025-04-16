@@ -16,10 +16,11 @@ from rl_random_times.utils.numeric import dot_vect, cumsum_numpy as cumsum, norm
 from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_reinforce_det_dir_path
 
 class ModelBasedDeterministicPG:
-    def __init__(self, env, env_name, n_steps_lim, expectation_type, return_type, gamma,
-                 n_layers, d_hidden_layer, batch_size, lr, n_grad_iterations, seed,
-                 estimate_z=None, batch_size_z=None, mini_batch_size=None, mini_batch_size_type='constant', optim_type='adam',
-                 scheduled_lr=False, lr_final=None, norm_returns=False):
+    def __init__(self, env, env_name, n_steps_lim, gamma=1.0, expectation_type='random-time',
+                 return_type='initial-return', estimate_z=True, n_layers=2, d_hidden_layer=32,
+                 optim_type='sgd', batch_size=100, batch_size_z=100, mini_batch_size_type='adaptive',
+                 mini_batch_size=1, lr=1e-2, n_grad_iterations=100, seed=None, scheduled_lr=False,
+                 lr_final=None, norm_returns=False, cuda=False):
 
         assert isinstance(env.action_space, gym.spaces.Box), 'Action space must be continuous.'
 
@@ -31,6 +32,16 @@ class ModelBasedDeterministicPG:
         self.env = env
         self.n_steps_lim = n_steps_lim
 
+        # discount
+        self.gamma = gamma
+
+        # cuda device
+        self.device = torch.device("cuda" if torch.cuda.is_available() and cuda else "cpu")
+
+        # env type
+        #TODO: generalize for other env types
+        self.env_type = 'custom'
+
         # get state and action dimensions
         self.state_dim = env.observation_space.shape[0]
         self.action_dim = env.action_space.shape[0]
@@ -38,10 +49,15 @@ class ModelBasedDeterministicPG:
         # expectation type and return type
         self.expectation_type = expectation_type
         self.return_type = return_type
-        self.norm_returns = norm_returns
 
-        # discount
-        self.gamma = gamma
+        # state space (on-policy) expectation
+        if expectation_type == 'on-policy':
+            self.estimate_z = estimate_z
+            self.mini_batch_size = mini_batch_size
+            self.mini_batch_size_type = mini_batch_size_type
+
+        # normalize returns
+        self.norm_returns = norm_returns
 
         # deterministic policy
         self.n_layers = n_layers
@@ -49,8 +65,10 @@ class ModelBasedDeterministicPG:
 
         # initialize policy model
         hidden_sizes = [d_hidden_layer for i in range(n_layers -1)]
-        self.policy= DeterministicPolicy(state_dim=self.state_dim, action_dim=self.action_dim,
-                                         hidden_sizes=hidden_sizes, activation=nn.Tanh())
+        self.policy= DeterministicPolicy(
+            state_dim=self.state_dim, action_dim=self.action_dim,
+            hidden_sizes=hidden_sizes, activation=nn.Tanh()
+        ).to(self.device)
 
         # stochastic gradient descent
         self.batch_size = batch_size
@@ -83,11 +101,6 @@ class ModelBasedDeterministicPG:
         # seed
         self.seed = seed
 
-        # on-policy expectation
-        if expectation_type == 'on-policy':
-            self.estimate_z = estimate_z
-            self.mini_batch_size = mini_batch_size
-            self.mini_batch_size_type = mini_batch_size_type
 
     def sample_trajectories(self):
 
@@ -101,13 +114,7 @@ class ModelBasedDeterministicPG:
         states, dbts, rewards = [], [], []
 
         # reset environment
-        # envpool env
-        if 'EnvPool' in type(self.env).__name__:
-            state, _ = self.env.reset()
-
-        # custom vectorized environment
-        else:
-            state, info = self.env.reset(seed=self.seed, options={'batch_size': K})
+        state, info = self.env.reset(seed=self.seed, options={'batch_size': K})
 
         # terminated and done flags
         been_terminated = np.full((K,), False)

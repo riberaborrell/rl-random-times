@@ -1,58 +1,55 @@
 import gymnasium as gym
+import gym_sde_is
 import numpy as np
 
 from rl_random_times.po.ppo_core import PPO
 from rl_random_times.po.ppo_parser import add_ppo_arguments
 from rl_random_times.utils.base_parser import get_base_parser
-from rl_random_times.utils.path import get_hopper_env_str
 from rl_random_times.utils.plots import plot_y_per_x
 
 def main():
     parser = get_base_parser()
+    parser.description = 'Run episodic version of the ppo algorithm for the sde \
+                          importance sampling environment with a ol toy example.'
     add_ppo_arguments(parser)
     parser.add_argument(
-        '--healthy-reward',
-        type=float,
-        default=1.,
+        '--d',
+        type=int,
+        default=1,
+        help='the dimension of the environment',
     )
     parser.add_argument(
-        '--forward-reward',
+        '--alpha',
         type=float,
-        default=1.,
+        nargs='+',
+        default=[1.],
+        help='the potential barrier parameter',
     )
     parser.add_argument(
-        '--ctrl-cost',
+        '--beta',
         type=float,
-        default=1e-3,
+        default=1.,
+        help='the inverse of the temperature',
     )
     args = parser.parse_args()
 
-    # environment parameters
-    kwargs = {}
-
-    # hopper parameters
-    kwargs['healthy_reward'] = args.healthy_reward
-    kwargs['forward_reward_weight'] = args.forward_reward
-    kwargs['ctrl_cost_weight'] = args.ctrl_cost
-
-    #TODO: add batch size z
-    # batch size
-    K = args.batch_size #if args.expectation_type == 'random-time' else args.batch_size_z
-
-    # create vectorized environment
-    assert 'Hopper' in args.env_id, 'This script only works with the Hopper environment.'
-    envs = gym.make_vec(args.env_id, num_envs=K, vectorization_mode="sync", **kwargs)
-
-    # environment name
-    env_name = get_hopper_env_str(
-        args.env_id, args.healthy_reward, args.forward_reward, args.ctrl_cost,
+    # create gym environment
+    env = gym.make(
+        'sde-is-doublewell-nd-mgf-v0',
+        d=args.d,
+        dt=0.01,
+        beta=args.beta,
+        alpha=args.alpha,
+        state_init_dist='delta',
+        max_episode_steps=int(1e6),
+        is_vectorized=True,
     )
 
     # PPO agent
     agent = PPO(
-        envs,
-        env_name=env_name,
-        n_steps_lim=envs.envs[0]._max_episode_steps,
+        env,
+        env_name=env.unwrapped.__str__(),
+        n_steps_lim=env._max_episode_steps,
         gamma=args.gamma,
         policy_noise_init=args.policy_noise,
         n_layers=args.n_layers,
@@ -81,7 +78,7 @@ def main():
         backup_freq=args.backup_freq,
         load=args.load,
     )
-    envs.close()
+    env.close()
 
     # do plots
     if not args.plot or not succ:

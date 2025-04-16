@@ -18,18 +18,20 @@ def make_env(env_id):
 def main():
     args = get_base_parser().parse_args()
 
-    assert 'MountainCarContinuous' in args.env_id, 'This script only works with the MountainCar environment.'
+    # batch size
+    K = args.batch_size if args.expectation_type == 'random-time' else args.batch_size_z
 
     # create vectorized environment
-    env = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id) for _ in range(args.batch_size)]
+    assert 'MountainCarContinuous' in args.env_id, 'This script only works with the MountainCar environment.'
+    envs = gym.vector.SyncVectorEnv(
+        [make_env(args.env_id) for _ in range(K)]
     )
 
     # reinforce stochastic agent
     agent = ReinforceStochastic(
-        env=env,
+        envs,
         env_name=args.env_id,
-        n_steps_lim=env.envs[0]._max_episode_steps,
+        n_steps_lim=envs.envs[0]._max_episode_steps,
         expectation_type=args.expectation_type,
         return_type=args.return_type,
         gamma=args.gamma,
@@ -57,7 +59,7 @@ def main():
         backup_freq=args.backup_freq,
         load=args.load,
     )
-    env.close()
+    envs.close()
 
     # do plots
     if not args.plot or not succ:

@@ -10,28 +10,23 @@ import torch.optim as optim
 
 from rl_random_times.po.models import ActorCriticModel
 from rl_random_times.utils.statistics import Statistics
-from rl_random_times.utils.numeric import normalize_array
-from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_ppo_dir_path
+from rl_random_times.utils.numeric import cumsum_numpy as cumsum, normalize_array
+from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_episodic_ppo_dir_path
 
 class PPO:
-    def __init__(self, env, env_name, n_envs, n_steps_lim, gamma, n_total_steps, n_layers=2,
-                 d_hidden_layer=32, policy_noise_init=1.0, optim_type='sgd',
-                 lr=3e-4, anneal_lr=True, n_mini_batches=32, update_epochs=10, max_grad_norm=0.5,
-                 norm_adv=True, gae_lambda=0.95, clip_vloss=True, clip_coef=0.2, ent_coef=0.,
+    def __init__(self, env, env_name, n_steps_lim, gamma=1.0, policy_noise_init=1.0, n_layers=2,
+                 d_hidden_layer=32, optim_type='sgd', batch_size=100, lr=1e-2,
+                 n_iterations=1000, n_mini_batches=32, update_epochs=10, max_grad_norm=0.5,
+                 norm_adv=True, clip_vloss=True, clip_coef=0.2, ent_coef=0.,
                  vf_coef=0.5, target_kl=None, seed=None, cuda=False, torch_deterministic=True):
 
         # agent name
-        self.agent = 'original-ppo'
+        self.agent = 'episodic-ppo'
 
         # environments
         self.env = env
         self.env_name = env_name
-        self.n_envs = n_envs
         self.n_steps_lim = n_steps_lim
-
-        # get state and action dimensions
-        self.state_dim = env.single_observation_space.shape[0]
-        self.action_dim = env.single_action_space.shape[0]
 
         # discount
         self.gamma = gamma
@@ -39,6 +34,22 @@ class PPO:
         # cuda device
         self.device = torch.device("cuda" if torch.cuda.is_available() and cuda else "cpu")
         self.torch_deterministic = torch_deterministic
+
+        # environment type
+        if 'VectorEnv' in type(env).__name__:
+            self.env_type = 'gym'
+        elif 'EnvPool' in type(env).__name__:
+            self.env_type = 'envpool'
+        else:
+            self.env_type = 'custom'
+
+        # get state and action dimensions
+        if self.env_type == 'gym':
+            self.state_dim = env.single_observation_space.shape[0]
+            self.action_dim = env.single_action_space.shape[0]
+        elif self.env_type == 'envpool' or self.env_type == 'custom':
+            self.state_dim = env.observation_space.shape[0]
+            self.action_dim = env.action_space.shape[0]
 
         # stochastic policy
         self.policy_noise_init = policy_noise_init
@@ -53,13 +64,10 @@ class PPO:
         ).to(self.device)
 
         # stochastic gradient descent
-        self.batch_size = int(self.n_envs * self.n_steps_lim)
+        self.batch_size = batch_size
+        self.n_iterations = n_iterations
         self.n_mini_batches = n_mini_batches
-        self.mini_batch_size = int(self.batch_size // self.n_mini_batches)
-        self.n_total_steps = n_total_steps
-        self.n_iterations = self.n_total_steps // self.batch_size
         self.lr = lr
-        self.anneal_lr = anneal_lr
         self.update_epochs = update_epochs
         self.max_grad_norm = max_grad_norm
 
@@ -74,9 +82,6 @@ class PPO:
 
         # normalize advantages flag
         self.norm_adv = norm_adv
-
-        # critic
-        self.gae_lambda = gae_lambda
 
         # value function
         self.clip_vloss = clip_vloss
@@ -94,181 +99,244 @@ class PPO:
         # seed 
         self.seed = seed
 
+    def sample_trajectories(self):
 
+        #TODO: adapt for batch_size_z
+        K = self.batch_size
+
+        # preallocate arrays
+        initial_returns = np.zeros(K, dtype=np.float32)
+        time_steps = np.empty(K, dtype=np.int32)
+
+        # preallocate lists to store states, actions, rewards and values
+        states, actions, log_probs, rewards, values = [], [], [], [], []
+
+        # reset environment
+
+        # custom vectorized environment
+        if self.env_type == 'custom': # custom vectorized environment
+            state, _ = self.env.reset(seed=self.seed, options={'batch_size': K})
+
+        else: # gym vect env or envpool env
+            state, _ = self.env.reset()
+
+        # terminated and done flags
+        been_terminated = np.full((K,), False)
+        new_terminated = np.full((K,), False)
+        done = np.full((K,), False)
+
+        # sample which trajectories are going to be stored
+        inds_mem = random.sample(range(K), self.batch_size)
+
+        k = 1
+        while not done.all():
+
+            # sample action
+            state_torch = torch.FloatTensor(state)
+            action, log_prob = self.model.sample_action(state_torch, log_prob=True)
+            with torch.no_grad():
+                value = self.model.get_value(state_torch)
+
+            # save state, action and value
+            states.append(state[inds_mem])
+            actions.append(action[inds_mem])
+            log_probs.append(log_prob[inds_mem])
+            values.append(value[inds_mem])
+
+            # step dynamics forward
+            state, r, terminated, truncated, _ = self.env.step(action)
+
+            # update terminated flags
+            new_terminated = terminated & ~been_terminated
+            been_terminated = terminated | been_terminated
+
+            # done flags
+            done = np.logical_or(been_terminated, truncated)
+
+            # save reward
+            rewards.append(r[inds_mem])
+
+            # save initial returns
+            initial_returns[~been_terminated | new_terminated] += r[~been_terminated | new_terminated]
+
+            # save time steps
+            if new_terminated.any():
+                time_steps[new_terminated] = k
+
+            # interrupt if all trajectories have reached a terminal state or have been truncated 
+            if done.all():
+                time_steps[~been_terminated] = k
+                break
+
+            # increment time step
+            k += 1
+
+        # compute returns and advantages
+        trajs_states, trajs_actions, trajs_log_probs, trajs_rewards, trajs_values, \
+                trajs_returns, trajs_advantages = [], [], [], [], [], [], []
+
+        # TODO: do we need this?
+        """
+        last_states = torch.tensor(
+            np.vstack([states[n_final-1][i] for i, n_final in enumerate(time_steps)]),
+            dtype=torch.float32,
+        )
+        with torch.no_grad():
+            last_values = self.model.get_value(last_states).reshape(1, -1)
+        """
+
+        # TODO: can this code be vectorized?
+        for i in range(self.batch_size):
+            idx_traj = inds_mem[i]
+            n_final = time_steps[idx_traj]
+            trajs_states.append(np.stack(states)[:n_final, i])
+            trajs_actions.append(np.stack(actions)[:n_final, i])
+            trajs_log_probs.append(np.stack(log_probs)[:n_final, i])
+            trajs_rewards.append(np.stack(rewards)[:n_final, i])
+            trajs_values.append(np.stack(values)[:n_final, i].squeeze())
+
+            # compute returns
+            trajs_returns.append(cumsum(trajs_rewards[i]))
+
+            # estimate advantages by computeing the temporal difference of the value function 
+            deltas = np.empty(n_final, dtype=np.float32)
+            for n in reversed(range(n_final)):
+                if n == n_final - 1:
+                    #deltas[n] = trajs_rewards[i][n] - values[n][idx_traj]
+                    deltas[n] = trajs_rewards[i][n] - trajs_values[i][n]
+                else:
+                    #deltas[n] = trajs_rewards[i][n] + self.gamma * values[n+1][idx_traj]  - values[n][idx_traj]
+                    deltas[n] = trajs_rewards[i][n] + self.gamma * trajs_values[i][n+1] - trajs_values[i][n]
+            trajs_advantages.append(deltas)
+
+        return np.vstack(trajs_states), np.vstack(trajs_actions), np.hstack(trajs_log_probs), \
+               np.hstack(trajs_values), np.hstack(trajs_returns), \
+               np.hstack(trajs_advantages), initial_returns, time_steps
 
     def run_ppo(self, backup_freq=None, live_plot_freq=None, log_freq=100, load=False):
 
         # get dir path
-        dir_path = get_ppo_dir_path(**self.__dict__)
+        dir_path = get_episodic_ppo_dir_path(**self.__dict__)
 
         # load results
         if load:
             return load_data(dir_path)
 
         # save algorithm parameters
-        excluded = ['env', 'model', 'optimizer']
+        excluded = ['env', 'model', 'optimizer', 'device']
         data = {key: value for key, value in vars(self).items() if key not in excluded}
         save_data(data, dir_path)
-
-         # TRY NOT TO MODIFY: seeding
-        random.seed(self.seed)
-        np.random.seed(self.seed)
-        torch.manual_seed(self.seed)
-        torch.backends.cudnn.deterministic = self.torch_deterministic
-
-        # ALGO Logic: Storage setup
-        obs = torch.zeros((self.n_steps_lim, self.n_envs) + self.env.single_observation_space.shape).to(self.device)
-        actions = torch.zeros((self.n_steps_lim, self.n_envs) + self.env.single_action_space.shape).to(self.device)
-        logprobs = torch.zeros((self.n_steps_lim, self.n_envs)).to(self.device)
-        rewards = torch.zeros((self.n_steps_lim, self.n_envs)).to(self.device)
-        dones = torch.zeros((self.n_steps_lim, self.n_envs)).to(self.device)
-        values = torch.zeros((self.n_steps_lim, self.n_envs)).to(self.device)
 
         # create object to store the is statistics of the learning
         stats = Statistics(
             eval_freq=1,
             n_iterations=self.n_iterations,
-            iter_str='Iterations:',
+            iter_str='Iter.:',
             policy_type='stoch',
+            track_pg_updates=True,
             track_ct=True,
         )
         keys_chosen = [
             'mean_lengths', 'var_lengths', 'max_lengths',
             'mean_returns', 'var_returns',
-            'cts',
+            'n_grad_updates', 'cts',
         ]
 
         # save model initial parameters
         save_model(self.model, dir_path, 'model_n-it{}'.format(0))
 
-        # TRY NOT TO MODIFY: start the game
-        global_step = 0
-        start_time = time.time()
-        next_obs, _ = self.env.reset(seed=self.seed)
-        next_obs = torch.Tensor(next_obs).to(self.device)
-        next_done = torch.zeros(self.n_envs).to(self.device)
-
-        for iteration in range(self.n_iterations):
+        for i in range(self.n_iterations):
 
             # start timer
             ct_initial = time.time()
 
-            # returns and lengths for each iteration
-            ep_returns, ep_time_steps = [], []
+            # sample trajectories
+            states, actions, log_probs, values, returns, deltas, initial_returns, time_steps = self.sample_trajectories()
 
-            # Annealing the rate if instructed to do so.
-            if self.anneal_lr:
-                frac = 1.0 - iteration / self.n_iterations
-                lrnow = frac * self.lr
-                self.optimizer.param_groups[0]["lr"] = lrnow
+            # convert to torch tensors
+            states = torch.Tensor(states).to(self.device)
+            actions = torch.Tensor(actions).to(self.device)
+            log_probs = torch.Tensor(log_probs).to(self.device)
+            values = torch.Tensor(values).to(self.device)
+            returns = torch.Tensor(returns).to(self.device)
+            deltas = torch.Tensor(deltas).to(self.device)
 
-            for step in range(0, self.n_steps_lim):
-                global_step += self.n_envs
-                obs[step] = next_obs
-                dones[step] = next_done
-
-                # ALGO LOGIC: action logic
-                with torch.no_grad():
-                    action, logprob, value = self.model.get_action_and_value(next_obs)
-                    values[step] = torch.Tensor(value.flatten()).to(self.device)
-                actions[step] = torch.Tensor(action).to(self.device)
-                logprobs[step] = torch.Tensor(logprob).to(self.device)
-
-                # TRY NOT TO MODIFY: execute the game and log data.
-                next_obs, reward, terminations, truncations, infos = self.env.step(action)
-                next_done = np.logical_or(terminations, truncations)
-                rewards[step] = torch.tensor(reward).to(self.device).view(-1)
-                next_obs, next_done = torch.Tensor(next_obs).to(self.device), torch.Tensor(next_done).to(self.device)
-
-                #print(step, terminations, truncations)
-                #print(self.env.envs[0].env.env.env.env.env.env.env.env.distance_to_target(next_obs))
-                if "episode" in infos:
-                    for i in range(infos["_episode"].shape[0]):
-                        if infos["_episode"][i] :
-                            ep_returns.append(infos["episode"]["r"][i])
-                            ep_time_steps.append(infos["episode"]["l"][i])
-
-            # bootstrap value if not done
-            with torch.no_grad():
-                next_value = self.model.critic.forward(next_obs).reshape(1, -1)
-                advantages = torch.zeros_like(rewards).to(self.device)
-                lastgaelam = 0
-                for t in reversed(range(self.n_steps_lim)):
-                    if t == self.n_steps_lim - 1:
-                        nextnonterminal = 1.0 - next_done
-                        nextvalues = next_value
-                    else:
-                        nextnonterminal = 1.0 - dones[t + 1]
-                        nextvalues = values[t + 1]
-                    delta = rewards[t] + self.gamma * nextvalues * nextnonterminal - values[t]
-                    advantages[t] = lastgaelam = delta + self.gamma * self.gae_lambda * nextnonterminal * lastgaelam
-                returns = advantages + values
-
-
-            # flatten the batch
-            b_obs = obs.reshape((-1,) + self.env.single_observation_space.shape)
-            b_logprobs = logprobs.reshape(-1)
-            b_actions = actions.reshape((-1,) + self.env.single_action_space.shape)
-            b_advantages = advantages.reshape(-1)
-            b_returns = returns.reshape(-1)
-            b_values = values.reshape(-1)
+            # n total steps in batch
+            n_total_steps = states.shape[0]
+            mini_batch_size = n_total_steps // self.n_mini_batches
+            last_mini_batch_size = n_total_steps % self.n_mini_batches
 
             # Optimizing the policy and value network
 
             # batch indices
-            b_inds = np.arange(self.batch_size)
-            clipfracs = []
+            b_inds = np.arange(n_total_steps, dtype=np.int32)
+            clip_fracs = []
+
+            # count policy gradient updates in the iteration
+            n_pg_updates = 0
 
             for epoch in range(self.update_epochs):
+
+                # shuffle data
                 np.random.shuffle(b_inds)
-                for start in range(0, self.batch_size, self.mini_batch_size):
-                    end = start + self.mini_batch_size
+
+                for j in range(0, self.n_mini_batches):
+
+                    # get mini batch indices
+                    start = j * mini_batch_size
+                    end = start + mini_batch_size if j < self.n_mini_batches - 1 else n_total_steps
                     mb_inds = b_inds[start:end]
 
-                    newvalue = self.model.critic(b_obs[mb_inds])
-                    dist, newlogprob = self.model.actor(b_obs[mb_inds], b_actions[mb_inds])
+                    # compute new log probs and entropy of the updated gaussian distribution
+                    new_values = self.model.critic(states[mb_inds])
+                    dist, new_log_probs = self.model.actor(states[mb_inds], actions[mb_inds])
                     entropy = dist.entropy().sum(1)
 
-                    logratio = newlogprob - b_logprobs[mb_inds]
-                    ratio = logratio.exp()
+                    # compute the ratio of the new and old log probs
+                    log_ratio = new_log_probs - log_probs[mb_inds]
+                    ratio = log_ratio.exp()
 
+                    # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     with torch.no_grad():
-                        # calculate approx_kl http://joschu.net/blog/kl-approx.html
-                        old_approx_kl = (-logratio).mean()
-                        approx_kl = ((ratio - 1) - logratio).mean()
-                        clipfracs += [((ratio - 1.0).abs() > self.clip_coef).float().mean().item()]
+                        old_approx_kl = (-log_ratio).mean()
+                        approx_kl = ((ratio - 1) - log_ratio).mean()
+                        clip_fracs += [((ratio - 1.0).abs() > self.clip_coef).float().mean().item()]
 
-                    mb_advantages = b_advantages[mb_inds]
+                    mb_advantages = deltas[mb_inds]
                     if self.norm_adv:
                         mb_advantages = normalize_array(mb_advantages, eps=1e-8)
 
-                    # Policy loss
+                    # policy loss
                     pg_loss1 = -mb_advantages * ratio
                     pg_loss2 = -mb_advantages * torch.clamp(ratio, 1 - self.clip_coef, 1 + self.clip_coef)
                     pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
-                    # Value loss
-                    newvalue = newvalue.view(-1)
+                    # value loss
+                    new_values = new_values.view(-1)
                     if self.clip_vloss:
-                        v_loss_unclipped = (newvalue - b_returns[mb_inds]) ** 2
-                        v_clipped = b_values[mb_inds] + torch.clamp(
-                            newvalue - b_values[mb_inds],
+                        v_loss_unclipped = (new_values - returns[mb_inds]) ** 2
+                        v_clipped = values[mb_inds] + torch.clamp(
+                            new_values - values[mb_inds],
                             -self.clip_coef,
                             self.clip_coef,
                         )
-                        v_loss_clipped = (v_clipped - b_returns[mb_inds]) ** 2
+                        v_loss_clipped = (v_clipped - returns[mb_inds]) ** 2
                         v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
                         v_loss = 0.5 * v_loss_max.mean()
                     else:
-                        v_loss = 0.5 * ((newvalue - b_returns[mb_inds]) ** 2).mean()
+                        v_loss = 0.5 * ((new_values - returns[mb_inds]) ** 2).mean()
 
+                    # entropy loss (entropy bonus for exploration)
                     entropy_loss = entropy.mean()
+
+                    # total loss
                     loss = pg_loss - self.ent_coef * entropy_loss + v_loss * self.vf_coef
 
                     self.optimizer.zero_grad()
                     loss.backward()
                     nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
                     self.optimizer.step()
+                    n_pg_updates += 1
 
                 if self.target_kl is not None and approx_kl > self.target_kl:
                     break
@@ -276,21 +344,21 @@ class PPO:
             # end timer
             ct_final = time.time()
 
-            y_pred, y_true = b_values.cpu().numpy(), b_returns.cpu().numpy()
+            #TODO: do we need this statistics?
+            y_pred, y_true = values.cpu().numpy(), returns.cpu().numpy()
             var_y = np.var(y_true)
             explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
             # save and log epoch 
-            stats.save_epoch(iteration, np.array(ep_returns, dtype=np.float32),
-                             np.array(ep_time_steps, dtype=np.float32), ct=ct_final - ct_initial)
-            stats.log_epoch(iteration)# if i % log_freq == 0 else None
+            stats.save_epoch(i, initial_returns, time_steps, n_pg_updates=n_pg_updates, ct=ct_final - ct_initial)
+            stats.log_epoch(i) if i % log_freq == 0 else None
 
             # backup models
-            if backup_freq and (iteration + 1) % backup_freq== 0:
-                save_model(self.model, dir_path, 'model_n-it{}'.format(iteration + 1))
+            if backup_freq and (i + 1) % backup_freq== 0:
+                save_model(self.model, dir_path, 'model_n-it{}'.format(i + 1))
 
             # backup statistics
-            if (iteration + 1) % 100 == 0:
+            if (i + 1) % 100 == 0:
                 stats_dict = {key: stats.__dict__[key] for key in keys_chosen}
                 save_data(data | stats_dict, dir_path)
 

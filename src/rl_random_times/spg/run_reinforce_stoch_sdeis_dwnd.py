@@ -1,54 +1,69 @@
-import envpool
 import gymnasium as gym
+import gym_sde_is
 import numpy as np
 
 from rl_random_times.spg.stochastic_pg_core import ReinforceStochastic
-from rl_random_times.spg.reinforce_parser import add_reinforce_arguments
 from rl_random_times.utils.base_parser import get_base_parser
 from rl_random_times.utils.plots import plot_y_per_grad_iteration
 
 def main():
-    args = add_reinforce_arguments(get_base_parser()).parse_args()
+    parser = get_base_parser()
+    parser.description = 'Run stochastic policy gradient for the sde \
+                          importance sampling environment with a ol toy example.'
+    parser.add_argument(
+        '--d',
+        type=int,
+        default=1,
+        help='the dimension of the environment',
+    )
+    parser.add_argument(
+        '--alpha',
+        type=float,
+        nargs='+',
+        default=[1.],
+        help='the potential barrier parameter',
+    )
+    parser.add_argument(
+        '--beta',
+        type=float,
+        default=1.,
+        help='the inverse of the temperature',
+    )
+    args = parser.parse_args()
 
-    # environment parameters
-    kwargs = {}
-
-    # time horizon
-    assert args.n_steps_lim is not None, 'n_steps_lim must be set.'
-    kwargs['max_episode_steps'] = args.n_steps_lim
-
-    # batch size
-    K = args.batch_size if args.expectation_type == 'random-time' else args.batch_size_z
-
-    # create gym env 
-    if args.env_type == 'gym':
-        env = gym.make_vec(args.env_id, num_envs=K, vectorization_mode="sync", **kwargs)
-    elif args.env_type == 'envpool':
-        env = envpool.make_gymnasium(args.env_id, num_envs=K, seed=args.seed, **kwargs)
-    else: # custom vectorized
-        env = gym.make(args.env_id, is_vectorized=True, **kwargs)
+    # create gym environment
+    env = gym.make(
+        'sde-is-doublewell-nd-mgf-v0',
+        d=args.d,
+        dt=0.01,
+        beta=args.beta,
+        alpha=args.alpha,
+        state_init_dist='delta',
+        max_episode_steps=int(1e6),
+        is_vectorized=True,
+    )
 
     # reinforce stochastic agent
     agent = ReinforceStochastic(
-        env=env,
-        env_name=args.env_id,
-        n_steps_lim=args.n_steps_lim,
+        env,
+        env_name=env.unwrapped.__str__(),
+        n_steps_lim=env._max_episode_steps,
         gamma=args.gamma,
         expectation_type=args.expectation_type,
         return_type=args.return_type,
+        estimate_z=args.estimate_z,
         policy_type=args.gaussian_policy_type,
         policy_noise=args.policy_noise,
         n_layers=args.n_layers,
         d_hidden_layer=args.d_hidden_layer,
+        optim_type=args.optim_type,
         batch_size=args.batch_size,
+        batch_size_z=args.batch_size_z,
+        mini_batch_size_type=args.mini_batch_size_type,
+        mini_batch_size=args.mini_batch_size,
         lr=args.lr,
         n_grad_iterations=args.n_grad_iterations,
         seed=args.seed,
-        estimate_z=args.estimate_z,
-        batch_size_z=args.batch_size_z,
-        mini_batch_size=args.mini_batch_size,
-        mini_batch_size_type=args.mini_batch_size_type,
-        optim_type=args.optim_type,
         scheduled_lr=args.scheduled_lr,
         lr_final=args.lr_final,
         norm_returns=args.norm_returns,
@@ -62,11 +77,9 @@ def main():
         load=args.load,
     )
     env.close()
-    if not succ:
-        return
 
     # do plots
-    if not args.plot:
+    if not args.plot or not succ:
         return
 
     # plot returns and time steps

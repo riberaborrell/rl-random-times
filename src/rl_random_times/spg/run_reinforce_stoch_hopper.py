@@ -45,9 +45,9 @@ def main():
 
     # create env 
     if args.env_type == 'gym':
-        env = gym.make_vec(args.env_id, num_envs=K, vectorization_mode="sync", **kwargs)
+        envs = gym.make_vec(args.env_id, num_envs=K, vectorization_mode="sync", **kwargs)
     elif args.env_type == 'envpool':
-        env = envpool.make_gymnasium(args.env_id, num_envs=K, seed=args.seed, **kwargs)
+        envs = envpool.make_gymnasium(args.env_id, num_envs=K, seed=args.seed, **kwargs)
     else: # custom vectorized
         raise ValueError(f'Custom vectorized environment for Hopper is not implemented.')
 
@@ -58,7 +58,7 @@ def main():
 
     # reinforce stochastic agent
     agent = ReinforceStochastic(
-        env=env,
+        envs,
         env_name=env_name,
         n_steps_lim=args.n_steps_lim,
         expectation_type=args.expectation_type,
@@ -88,7 +88,7 @@ def main():
         backup_freq=args.backup_freq,
         load=args.load,
     )
-    env.close()
+    envs.close()
 
     # do plots
     if not args.plot or not succ:
