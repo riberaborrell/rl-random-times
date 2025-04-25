@@ -11,17 +11,17 @@ import torch.optim as optim
 from rl_random_times.po.models import ActorCriticModel
 from rl_random_times.utils.statistics import Statistics
 from rl_random_times.utils.numeric import cumsum_numpy as cumsum, normalize_array
-from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_episodic_ppo_dir_path
+from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_ppo_dir_path
 
 class PPO:
     def __init__(self, env, env_name, n_steps_lim, gamma=1.0, policy_noise_init=1.0, n_layers=2,
-                 d_hidden_layer=32, optim_type='sgd', batch_size=100, lr=1e-2,
+                 d_hidden_layer=32, estimate_z=False, optim_type='sgd', batch_size=100, lr=1e-2,
                  n_iterations=1000, n_mini_batches=32, update_epochs=10, max_grad_norm=0.5,
                  norm_adv=True, clip_vloss=True, clip_coef=0.2, ent_coef=0.,
                  vf_coef=0.5, target_kl=None, seed=None, cuda=False, torch_deterministic=True):
 
         # agent name
-        self.agent = 'episodic-ppo'
+        self.agent = 'ppo'
 
         # environments
         self.env = env
@@ -62,6 +62,9 @@ class PPO:
             self.state_dim, self.action_dim, hidden_sizes,
                 activation=nn.Tanh(), std_init=policy_noise_init, seed=seed,
         ).to(self.device)
+
+        # estimate z
+        self.estimate_z = estimate_z
 
         # stochastic gradient descent
         self.batch_size = batch_size
@@ -171,43 +174,38 @@ class PPO:
             # increment time step
             k += 1
 
+        # convert to numpy arrays
+        states = np.stack(states)
+        actions = np.stack(actions)
+        log_probs = np.stack(log_probs)
+        values = np.stack(values).reshape(-1, K)
+        rewards = np.stack(rewards)
+
         # compute returns and advantages
         trajs_states, trajs_actions, trajs_log_probs, trajs_rewards, trajs_values, \
                 trajs_returns, trajs_advantages = [], [], [], [], [], [], []
 
-        # TODO: do we need this?
-        """
-        last_states = torch.tensor(
-            np.vstack([states[n_final-1][i] for i, n_final in enumerate(time_steps)]),
-            dtype=torch.float32,
-        )
-        with torch.no_grad():
-            last_values = self.model.get_value(last_states).reshape(1, -1)
-        """
+        # estimate advantages by computeing the temporal difference of the value function 
+        deltas = rewards[:-1] + self.gamma * values[1:] - values[:-1]
+        deltas = np.vstack((deltas, np.empty((1, K))))
 
-        # TODO: can this code be vectorized?
         for i in range(self.batch_size):
             idx_traj = inds_mem[i]
             n_final = time_steps[idx_traj]
-            trajs_states.append(np.stack(states)[:n_final, i])
-            trajs_actions.append(np.stack(actions)[:n_final, i])
-            trajs_log_probs.append(np.stack(log_probs)[:n_final, i])
-            trajs_rewards.append(np.stack(rewards)[:n_final, i])
-            trajs_values.append(np.stack(values)[:n_final, i].squeeze())
+            trajs_states.append(states[:n_final, i])
+            trajs_actions.append(actions[:n_final, i])
+            trajs_log_probs.append(log_probs[:n_final, i])
+            trajs_rewards.append(rewards[:n_final, i])
+            trajs_values.append(values[:n_final, i])
 
             # compute returns
             trajs_returns.append(cumsum(trajs_rewards[i]))
 
-            # estimate advantages by computeing the temporal difference of the value function 
-            deltas = np.empty(n_final, dtype=np.float32)
-            for n in reversed(range(n_final)):
-                if n == n_final - 1:
-                    #deltas[n] = trajs_rewards[i][n] - values[n][idx_traj]
-                    deltas[n] = trajs_rewards[i][n] - trajs_values[i][n]
-                else:
-                    #deltas[n] = trajs_rewards[i][n] + self.gamma * values[n+1][idx_traj]  - values[n][idx_traj]
-                    deltas[n] = trajs_rewards[i][n] + self.gamma * trajs_values[i][n+1] - trajs_values[i][n]
-            trajs_advantages.append(deltas)
+            # correct temporal difference value at the last time step
+            deltas[n_final-1, i] = rewards[n_final-1, i] - values[n_final-1, i]
+
+            # store advantages
+            trajs_advantages.append(deltas[:n_final, i])
 
         return np.vstack(trajs_states), np.vstack(trajs_actions), np.hstack(trajs_log_probs), \
                np.hstack(trajs_values), np.hstack(trajs_returns), \
@@ -216,7 +214,7 @@ class PPO:
     def run_ppo(self, backup_freq=None, live_plot_freq=None, log_freq=100, load=False):
 
         # get dir path
-        dir_path = get_episodic_ppo_dir_path(**self.__dict__)
+        dir_path = get_ppo_dir_path(**self.__dict__)
 
         # load results
         if load:
@@ -260,6 +258,10 @@ class PPO:
             values = torch.Tensor(values).to(self.device)
             returns = torch.Tensor(returns).to(self.device)
             deltas = torch.Tensor(deltas).to(self.device)
+
+
+            # estimate mean trajectory length
+            mean_length = time_steps.mean() if self.estimate_z else 1
 
             # n total steps in batch
             n_total_steps = states.shape[0]
@@ -332,10 +334,22 @@ class PPO:
                     # total loss
                     loss = pg_loss - self.ent_coef * entropy_loss + v_loss * self.vf_coef
 
+                    # reset and compute gradients
                     self.optimizer.zero_grad()
                     loss.backward()
                     nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+
+                    # scale gradients w.r.t. the policy before updating parameters
+                    if self.estimate_z:
+                        with torch.no_grad():
+                            for param in self.model.actor.parameters():
+                                if param.grad is not None:
+                                    param.grad *= mean_length
+
+                    #update parameters
                     self.optimizer.step()
+
+                    # update pg updates counter
                     n_pg_updates += 1
 
                 if self.target_kl is not None and approx_kl > self.target_kl:
@@ -343,11 +357,6 @@ class PPO:
 
             # end timer
             ct_final = time.time()
-
-            #TODO: do we need this statistics?
-            y_pred, y_true = values.cpu().numpy(), returns.cpu().numpy()
-            var_y = np.var(y_true)
-            explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
             # save and log epoch 
             stats.save_epoch(i, initial_returns, time_steps, n_pg_updates=n_pg_updates, ct=ct_final - ct_initial)

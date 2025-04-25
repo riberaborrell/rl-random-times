@@ -42,6 +42,7 @@ def main():
         lr=args.lr,
         max_grad_norm=args.max_grad_norm,
         optim_type=args.optim_type,
+        estimate_z=args.estimate_z,
         norm_adv=args.norm_adv,
         clip_vloss=args.clip_vloss,
         clip_coef=args.clip_coef,

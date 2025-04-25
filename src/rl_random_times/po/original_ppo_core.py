@@ -11,7 +11,7 @@ import torch.optim as optim
 from rl_random_times.po.models import ActorCriticModel
 from rl_random_times.utils.statistics import Statistics
 from rl_random_times.utils.numeric import normalize_array
-from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_ppo_dir_path
+from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_original_ppo_dir_path
 
 class PPO:
     def __init__(self, env, env_name, n_envs, n_steps_lim, gamma, n_total_steps, n_layers=2,
@@ -99,7 +99,7 @@ class PPO:
     def run_ppo(self, backup_freq=None, live_plot_freq=None, log_freq=100, load=False):
 
         # get dir path
-        dir_path = get_ppo_dir_path(**self.__dict__)
+        dir_path = get_original_ppo_dir_path(**self.__dict__)
 
         # load results
         if load:

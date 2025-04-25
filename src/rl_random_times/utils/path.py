@@ -99,7 +99,9 @@ def get_model_arch_str(**kwargs):
     return string
 
 def get_z_estimation_str(**kwargs):
-    if 'on-policy' in kwargs['agent'] or kwargs['agent'] == 'model-based-dpg':
+    if 'reinforce' in kwargs['agent'] or \
+        kwargs['agent'] == 'model-based-dpg' or \
+        kwargs['agent'] == 'ppo':
         return 'z-estimated_' if kwargs['estimate_z'] else 'z-neglected_'
     else:
         return ''
@@ -261,7 +263,7 @@ def get_reinforce_det_dir_path(**kwargs):
 
     return get_dir_path(kwargs['env_name'], kwargs['agent'], param_str)
 
-def get_ppo_dir_path(**kwargs):
+def get_original_ppo_dir_path(**kwargs):
     '''
     '''
 
@@ -272,15 +274,15 @@ def get_ppo_dir_path(**kwargs):
               + 'policy-noise-init{:.2f}_'.format(kwargs['policy_noise_init']) \
               + 'n-envs{:d}_'.format(kwargs['n_envs']) \
               + 'n-total-steps{:.0e}_'.format(kwargs['n_total_steps']) \
-              + 'lr{:.1e}_'.format(kwargs['lr']) \
               + 'optim-{}_'.format(kwargs['optim_type']) \
+              + 'lr{:.1e}_'.format(kwargs['lr']) \
               + 'n-mini-batches{:d}_'.format(kwargs['n_mini_batches']) \
               + 'update-epochs{:d}_'.format(kwargs['update_epochs']) \
               + get_seed_str(**kwargs)
 
     return get_dir_path(kwargs['env_name'], kwargs['agent'], param_str)
 
-def get_episodic_ppo_dir_path(**kwargs):
+def get_ppo_dir_path(**kwargs):
     '''
     '''
 
@@ -289,8 +291,9 @@ def get_episodic_ppo_dir_path(**kwargs):
               + 'gamma{:.3f}_'.format(kwargs['gamma']) \
               + get_model_arch_str(**kwargs) \
               + 'policy-noise-init{:.2f}_'.format(kwargs['policy_noise_init']) \
-              + get_lr_and_batch_size_str(**kwargs) \
+              + get_z_estimation_str(**kwargs) \
               + 'optim-{}_'.format(kwargs['optim_type']) \
+              + get_lr_and_batch_size_str(**kwargs) \
               + get_iter_str(**kwargs) \
               + 'n-mini-batches{:d}_'.format(kwargs['n_mini_batches']) \
               + 'update-epochs{:d}_'.format(kwargs['update_epochs']) \
