@@ -43,11 +43,14 @@ def plot_y_per_x(x, y, run_window=1, hlines=None, title='', plot_scale='linear',
     plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
-def plot_y_per_episode(x, y, **kwargs):
-    plot_y_per_x(x, y, xlabel='Episodes', **kwargs)
+def plot_y_per_iteration(x, y, **kwargs):
+    plot_y_per_x(x, y, xlabel='Iterations', **kwargs)
 
 def plot_y_per_grad_iteration(x, y, **kwargs):
     plot_y_per_x(x, y, xlabel='Gradient iterations', **kwargs)
+
+def plot_y_per_episode(x, y, **kwargs):
+    plot_y_per_x(x, y, xlabel='Episodes', **kwargs)
 
 def plot_y_per_time_steps(x, y, **kwargs):
     plot_y_per_x(x, y, xlabel='Time steps', **kwargs)
@@ -85,11 +88,14 @@ def plot_ys_per_x(x, ys, run_window=1, hlines=None, title='', plot_scale='linear
     plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
-def plot_ys_per_episode(x, ys, **kwargs):
-    plot_ys_per_x(x, ys, xlabel='Episodes', **kwargs)
+def plot_ys_per_iteration(x, ys, **kwargs):
+    plot_ys_per_x(x, ys, xlabel='Iterations', **kwargs)
 
 def plot_ys_per_grad_iteration(x, ys, **kwargs):
     plot_ys_per_x(x, ys, xlabel='Gradient iterations', **kwargs)
+
+def plot_ys_per_episode(x, ys, **kwargs):
+    plot_ys_per_x(x, ys, xlabel='Episodes', **kwargs)
 
 def plot_ys_per_time_steps(x, ys, **kwargs):
     plot_ys_per_x(x, ys, xlabel='Time steps', **kwargs)
@@ -117,11 +123,14 @@ def plot_y_avg_per_x(x, ys, hlines=None, title: str = '', xlabel: str = '', xlim
     plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
-def plot_y_avg_per_episode(x, ys, **kwargs):
-    plot_y_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
+def plot_y_avg_per_iteration(x, ys, **kwargs):
+    plot_y_avg_per_x(x, ys, xlabel='Iterations', **kwargs)
 
 def plot_y_avg_per_grad_iteration(x, ys, **kwargs):
     plot_y_avg_per_x(x, ys, xlabel='Grad. iterations', **kwargs)
+
+def plot_y_avg_per_episode(x, ys, **kwargs):
+    plot_y_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
 
 def plot_y_avg_per_time_steps(x, ys, **kwargs):
     plot_y_avg_per_x(x, ys, xlabel='Time steps', **kwargs)
@@ -159,12 +168,15 @@ def plot_ys_avg_per_x(x, ys, plot_std=True, hlines=None, title: str = '', xlabel
     plt.tight_layout(**kwargs_layout)
     plt.savefig(file_path, format='pdf') if file_path is not None else plt.show()
 
-def plot_ys_avg_per_episode(x, ys, **kwargs):
-    #plot_ys_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
-    plot_ys_avg_per_x(x, ys, xlabel='Trajectories', **kwargs)
+def plot_ys_avg_per_iteration(x, ys, **kwargs):
+    plot_ys_avg_per_x(x, ys, xlabel='Iterations', **kwargs)
 
 def plot_ys_avg_per_grad_iteration(x, ys, **kwargs):
     plot_ys_avg_per_x(x, ys, xlabel='Gradient iterations', **kwargs)
+
+def plot_ys_avg_per_episode(x, ys, **kwargs):
+    #plot_ys_avg_per_x(x, ys, xlabel='Episodes', **kwargs)
+    plot_ys_avg_per_x(x, ys, xlabel='Trajectories', **kwargs)
 
 def plot_ys_avg_per_time_steps(x, ys, **kwargs):
     plot_ys_avg_per_x(x, ys, xlabel='Time steps', **kwargs)

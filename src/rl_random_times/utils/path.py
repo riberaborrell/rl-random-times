@@ -99,9 +99,7 @@ def get_model_arch_str(**kwargs):
     return string
 
 def get_z_estimation_str(**kwargs):
-    if 'reinforce' in kwargs['agent'] or \
-        kwargs['agent'] == 'model-based-dpg' or \
-        kwargs['agent'] == 'ppo':
+    if 'estimate_z' in kwargs.keys():
         return 'z-estimated_' if kwargs['estimate_z'] else 'z-neglected_'
     else:
         return ''

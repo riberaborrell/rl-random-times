@@ -1,6 +1,18 @@
 
 def add_ac_arguments(parser):
     parser.add_argument(
+        '--actor-lr',
+        type=float,
+        default=1e-2,
+        help='the learning rate for the policy (actor)',
+    )
+    parser.add_argument(
+        '--critic-lr',
+        type=float,
+        default=1e-2,
+        help='the learning rate for the value function (critic)',
+    )
+    parser.add_argument(
         '--clip-vf-loss',
         action='store_true',
         default=False,

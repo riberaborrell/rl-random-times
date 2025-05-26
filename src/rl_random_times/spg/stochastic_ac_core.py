@@ -15,11 +15,11 @@ from rl_random_times.utils.numeric import cumsum_numpy as cumsum, normalize_arra
 from rl_random_times.utils.path import load_data, save_data, save_model, load_model, get_ac_stoch_dir_path
 
 class ActorCriticStochastic:
-    def __init__(self, env, env_name, n_steps_lim, expectation_type, gamma,
-                 n_layers, d_hidden_layer, batch_size, lr, n_grad_iterations, seed,
-                 policy_noise=None, estimate_z=None, batch_size_z=None,
-                 mini_batch_size=None, mini_batch_size_type='constant', optim_type='adam',
-                 scheduled_lr=False, lr_final=None, norm_adv=True, clip_vf_loss=True, clip_coef=0.2, vf_coef=0.5):
+    def __init__(self, env, env_name, n_steps_lim, gamma=1.0, expectation_type='random-time',
+                 estimate_z=True, n_layers=2, d_hidden_layer=32, batch_size=100, batch_size_z=100, 
+                 mini_batch_size_type='constant', mini_batch_size=1, actor_lr=1e-2, critic_lr=1e-2,
+                 n_grad_iterations=100, seed=None, policy_noise=1.0, optim_type='sgd',
+                 norm_adv=True, train_vf_iters=10, clip_vf_loss=True, clip_coef=0.2, vf_coef=0.5):
 
         if isinstance(env.action_space, gym.spaces.Box):
             self.is_action_continuous = True
@@ -42,6 +42,9 @@ class ActorCriticStochastic:
         self.env = env
         self.n_steps_lim = n_steps_lim
 
+        # discount
+        self.gamma = gamma
+
         # get state and action dimensions
         if 'EnvPool' in type(env).__name__ or hasattr(env.unwrapped, 'is_vectorized'):
             self.state_dim = env.observation_space.shape[0]
@@ -60,11 +63,14 @@ class ActorCriticStochastic:
         # expectation type
         self.expectation_type = expectation_type
 
+        # on-policy expectation
+        if expectation_type == 'on-policy':
+            self.estimate_z = estimate_z
+            self.mini_batch_size = mini_batch_size
+            self.mini_batch_size_type = mini_batch_size_type
+
         # normalize advantages
         self.norm_adv = norm_adv
-
-        # discount
-        self.gamma = gamma
 
         # stochastic policy
         self.policy_noise = policy_noise
@@ -84,41 +90,29 @@ class ActorCriticStochastic:
             batch_size_z = batch_size if batch_size_z is None else batch_size_z
             assert batch_size_z >= batch_size, 'The batch size z must be greater or equal to the batch size.'
             self.batch_size_z = batch_size_z
-        self.lr = lr
+        self.actor_lr = actor_lr
+        self.critic_lr = critic_lr
         self.n_grad_iterations = n_grad_iterations
 
         # optimizer
         self.optim_type = optim_type
         if optim_type == 'adam':
-            self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+            self.actor_optimizer = optim.Adam(self.model.actor.parameters(), lr=actor_lr)
+            self.critic_optimizer = optim.Adam(self.model.critic.parameters(), lr=critic_lr)
         elif optim_type == 'sgd':
-            self.optimizer = optim.SGD(self.model.parameters(), lr=lr)
+            self.actor_optimizer = optim.SGD(self.model.actor.parameters(), lr=actor_lr)
+            self.critic_optimizer = optim.SGD(self.model.critic.parameters(), lr=critic_lr)
         else:
             raise ValueError('The optimizer {optim} is not implemented')
 
         # value function loss
+        self.train_vf_iters = train_vf_iters
         self.clip_vf_loss = clip_vf_loss
         self.clip_coef = clip_coef
         self.vf_coef = vf_coef
 
-        # scheduler
-        self.scheduled_lr = scheduled_lr
-        if scheduled_lr:
-            self.lr_final = lr_final
-            lr_schedule = functools.partial(simple_lr_schedule, lr_init=lr,
-                                            lr_final=lr_final, n_iter=n_grad_iterations+1)
-            self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lr_schedule)
-        else:
-            self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda it: 1)
-
         # seed
         self.seed = seed
-
-        # on-policy expectation
-        if expectation_type == 'on-policy':
-            self.estimate_z = estimate_z
-            self.mini_batch_size = mini_batch_size
-            self.mini_batch_size_type = mini_batch_size_type
 
     def sample_trajectories(self):
 
@@ -147,7 +141,7 @@ class ActorCriticStochastic:
         done = np.full((K,), False)
 
         # sample which trajectories are going to be stored
-        idx_mem = random.sample(range(K), self.batch_size)
+        inds_mem = random.sample(range(K), self.batch_size)
 
         k = 1
         while not done.all():
@@ -159,9 +153,9 @@ class ActorCriticStochastic:
                 value = self.model.get_value(state_torch)
 
             # save state, action and value
-            states.append(state[idx_mem])
-            actions.append(action[idx_mem])
-            values.append(value[idx_mem])
+            states.append(state[inds_mem])
+            actions.append(action[inds_mem])
+            values.append(value[inds_mem])
 
             # step dynamics forward
             state, r, terminated, truncated, _ = self.env.step(action)
@@ -174,7 +168,7 @@ class ActorCriticStochastic:
             done = np.logical_or(been_terminated, truncated)
 
             # save reward
-            rewards.append(r[idx_mem])
+            rewards.append(r[inds_mem])
 
             # save initial returns
             initial_returns[~been_terminated | new_terminated] += r[~been_terminated | new_terminated]
@@ -193,40 +187,40 @@ class ActorCriticStochastic:
 
         # compute returns
         trajs_states, trajs_actions, trajs_rewards, trajs_values, \
-                trajs_returns, trajs_deltas = [], [], [], [], [], []
+                trajs_returns, trajs_advantages = [], [], [], [], [], []
 
-        #n_steps = time_steps.max()
-        last_states = torch.tensor(
-            np.vstack([states[idx-1][i] for i, idx in enumerate(time_steps)]),
-            dtype=torch.float32,
-        )
+        # TODO: do we need this?
+        #last_states = torch.tensor(
+        #    np.vstack([states[n_final-1][i] for i, n_final in enumerate(time_steps)]),
+        #    dtype=torch.float32,
+        #)
+        #with torch.no_grad():
+        #    last_values = self.model.get_value(last_states).reshape(1, -1)
 
-        with torch.no_grad():
-            last_values = self.model.get_value(last_states).reshape(1, -1)
-
+        # TODO: can this code be vectorized?
         for i in range(self.batch_size):
-            idx_traj = idx_mem[i]
-            idx = time_steps[idx_traj]
-            trajs_states.append(np.stack(states)[:idx, i])
-            trajs_actions.append(np.stack(actions)[:idx, i])
-            trajs_rewards.append(np.stack(rewards)[:idx, i])
-            trajs_values.append(np.stack(values)[:idx, i].squeeze())
+            idx_traj = inds_mem[i]
+            n_final = time_steps[idx_traj]
+            trajs_states.append(np.stack(states)[:n_final, i])
+            trajs_actions.append(np.stack(actions)[:n_final, i])
+            trajs_rewards.append(np.stack(rewards)[:n_final, i])
+            trajs_values.append(np.stack(values)[:n_final, i].squeeze())
 
             # compute returns
             trajs_returns.append(cumsum(trajs_rewards[i]))
 
             # estimate advantages by computeing the temporal difference of the value function 
-            deltas = np.empty(idx, dtype=np.float32)
-            for n in reversed(range(idx)):
-                if n == idx - 1:
-                    deltas[n] = trajs_rewards[i][n] - values[n][idx_traj]
+            deltas = np.empty(n_final, dtype=np.float32)
+            for n in reversed(range(n_final)):
+                if n == n_final - 1:
+                    deltas[n] = trajs_rewards[i][n] - trajs_values[i][n]
                 else:
-                    deltas[n] = trajs_rewards[i][n] + self.gamma * values[n+1][idx_traj]  - values[n][idx_traj]
-            trajs_deltas.append(deltas)
+                    deltas[n] = trajs_rewards[i][n] + self.gamma * trajs_values[i][n+1] - trajs_values[i][n]
+            trajs_advantages.append(deltas)
 
         trajs_actions = np.vstack(trajs_actions) if self.is_action_continuous else np.hstack(trajs_actions)
         return np.vstack(trajs_states), trajs_actions, np.hstack(trajs_values), np.hstack(trajs_returns), \
-               np.hstack(trajs_deltas), initial_returns, time_steps
+               np.hstack(trajs_advantages), initial_returns, time_steps
 
 
     def sample_loss_random_time_trajectories(self, it):
@@ -235,56 +229,55 @@ class ActorCriticStochastic:
         '''
 
         # sample trajectories
-        states, actions, values, returns, deltas, initial_returns, time_steps = self.sample_trajectories()
+        states, actions, values, returns, advantages, initial_returns, time_steps = self.sample_trajectories()
 
         # convert to torch tensors
         states = torch.FloatTensor(states)
         actions = torch.FloatTensor(actions)
         values = torch.FloatTensor(values)
         returns = torch.FloatTensor(returns)
-        deltas = torch.FloatTensor(deltas)
+        advantages = torch.FloatTensor(advantages)
 
         # normalize advantages
         if self.norm_adv:
-            deltas = normalize_array(deltas, eps=1e-5)
+            advantages = normalize_array(advantages, eps=1e-5)
 
         # compute log probs
         _, log_probs = self.model.actor.forward(states, actions)
 
         # pg loss
-        phi = - log_probs * deltas
+        phi = - log_probs * advantages
         pg_loss = phi.sum() / self.batch_size
         with torch.no_grad():
             pg_loss_var = phi.var().numpy()
 
-        # value function loss
-        new_values = self.model.critic(states).view(-1)
-        if self.clip_vf_loss:
-            vf_loss_unclipped = (new_values - returns) ** 2
-            vf_clipped = values + torch.clamp(
-                new_values - values,
-                -self.clip_coef,
-                self.clip_coef,
-            )
-            vf_loss_clipped = (vf_clipped - returns) ** 2
-            vf_loss_max = torch.max(vf_loss_unclipped, vf_loss_clipped)
-            vf_loss = 0.5 * vf_loss_max.mean()
-        else:
-            vf_loss = 0.5 * ((new_values - returns) ** 2).mean()
-
-        # loss
-        loss = pg_loss + vf_loss * self.vf_coef
-
-        # get actual learning rate
-        self.live_lr = self.optimizer.param_groups[0]['lr'] if it != 0 else self.lr
-
         # reset gradients, compute gradients and update parameters
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-        self.scheduler.step()
+        self.actor_optimizer.zero_grad()
+        pg_loss.backward()
+        self.actor_optimizer.step()
 
-        return loss.detach().numpy(), pg_loss_var, initial_returns, time_steps
+        # value function loss
+        for i in range(self.train_vf_iters):
+            new_values = self.model.critic(states).view(-1)
+            if self.clip_vf_loss:
+                vf_loss_unclipped = (new_values - returns) ** 2
+                vf_clipped = values + torch.clamp(
+                    new_values - values,
+                    -self.clip_coef,
+                    self.clip_coef,
+                )
+                vf_loss_clipped = (vf_clipped - returns) ** 2
+                vf_loss_max = torch.max(vf_loss_unclipped, vf_loss_clipped)
+                vf_loss = 0.5 * vf_loss_max.mean()
+            else:
+                vf_loss = 0.5 * ((new_values - returns) ** 2).mean()
+
+            # reset gradients, compute gradients and update parameters
+            self.critic_optimizer.zero_grad()
+            vf_loss.backward()
+            self.critic_optimizer.step()
+
+        return pg_loss.detach().numpy(), pg_loss_var, vf_loss.detach().numpy(), initial_returns, time_steps
 
     def sample_loss_on_policy_state(self, it):
         ''' Sample and compute alternative loss function corresponding to (on-policy) state-space-based
@@ -370,9 +363,6 @@ class ActorCriticStochastic:
         #update parameters
         self.optimizer.step()
 
-        # update learning rate
-        self.scheduler.step()
-
         return loss, pg_loss_var, initial_returns, time_steps
 
     def run_ac(self, backup_freq=None, live_plot_freq=None, log_freq=100, load=False):
@@ -385,7 +375,7 @@ class ActorCriticStochastic:
             return load_data(dir_path)
 
         # save algorithm parameters
-        excluded = ['env', 'model', 'optimizer', 'scheduler', 'live_lr']
+        excluded = ['env', 'model', 'optimizer', 'live_lr']
         data = {key: value for key, value in vars(self).items() if key not in excluded}
         save_data(data, dir_path)
 
@@ -397,7 +387,6 @@ class ActorCriticStochastic:
             policy_type='stoch',
             track_loss=True,
             track_ct=True,
-            track_lr=True if self.scheduled_lr else False,
         )
         keys_chosen = [
             'mean_lengths', 'var_lengths', 'max_lengths',
@@ -405,7 +394,6 @@ class ActorCriticStochastic:
             'losses', 'loss_vars',
             'cts',
         ]
-        keys_chosen += ['lrs'] if self.scheduled_lr else []
 
         # save model initial parameters
         save_model(self.model, dir_path, 'model_n-it{}'.format(0))
@@ -421,7 +409,7 @@ class ActorCriticStochastic:
 
             # sample loss function
             if self.expectation_type == 'random-time':
-                loss, loss_var, returns, time_steps = self.sample_loss_random_time_trajectories(i)
+                loss, loss_var, vf_loss, returns, time_steps = self.sample_loss_random_time_trajectories(i)
             else: #expectation_type == 'on-policy':
                 loss, loss_var, returns, time_steps = self.sample_loss_on_policy_state(i)
 
@@ -429,10 +417,8 @@ class ActorCriticStochastic:
             ct_final = time.time()
 
             # save and log epoch 
-            lr = self.live_lr if self.scheduled_lr else None
-            track_lr=True if self.scheduled_lr else False,
             stats.save_epoch(i, returns, time_steps, loss=loss,
-                             loss_var=loss_var, ct=ct_final - ct_initial, lr=lr)
+                             loss_var=loss_var, ct=ct_final - ct_initial)
             stats.log_epoch(i) if i % log_freq == 0 else None
 
             # backup models

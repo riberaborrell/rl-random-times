@@ -342,7 +342,8 @@ class PPO:
                     # scale gradients w.r.t. the policy before updating parameters
                     if self.estimate_z:
                         with torch.no_grad():
-                            for param in self.model.actor.parameters():
+                            #for param in self.model.actor.parameters():
+                            for param in self.model.parameters():
                                 if param.grad is not None:
                                     param.grad *= mean_length
 

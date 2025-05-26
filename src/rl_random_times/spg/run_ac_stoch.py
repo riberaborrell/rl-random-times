@@ -30,18 +30,32 @@ def main():
 
     # reinforce stochastic agent
     agent = ActorCriticStochastic(
-        env, args.env_id, args.n_steps_lim, args.expectation_type, args.gamma,
-        args.n_layers, args.d_hidden_layer, args.batch_size, args.lr, args.n_grad_iterations, args.seed,
-        args.policy_noise, args.estimate_z,
-        args.batch_size_z, args.mini_batch_size, args.mini_batch_size_type,
-        args.optim_type, args.scheduled_lr, args.lr_final, args.norm_adv, args.clip_vf_loss, args.clip_coef, args.vf_coef,
+        env=env,
+        env_name=args.env_id,
+        n_steps_lim=args.n_steps_lim,
+        expectation_type=args.expectation_type,
+        gamma=args.gamma,
+        n_layers=args.n_layers,
+        d_hidden_layer=args.d_hidden_layer,
+        batch_size=args.batch_size,
+        actor_lr=args.actor_lr,
+        critic_lr=args.critic_lr,
+        n_grad_iterations=args.n_grad_iterations,
+        seed=args.seed,
+        policy_noise=args.policy_noise,
+        estimate_z=args.estimate_z,
+        batch_size_z=args.batch_size_z,
+        mini_batch_size=args.mini_batch_size,
+        mini_batch_size_type=args.mini_batch_size_type,
+        optim_type=args.optim_type,
+        norm_adv=args.norm_adv,
+        #cuda=args.cuda,
     )
 
     # run
     succ, data = agent.run_ac(
         log_freq=args.log_freq,
         backup_freq=args.backup_freq,
-        live_plot_freq=args.live_plot_freq,
         load=args.load,
     )
     env.close()
